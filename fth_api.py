@@ -1,6 +1,6 @@
 # FTH BACKEND PYTHON FILE
 # ServingNow.me
-# https://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev/api/v2/<enter_endpoint_details>
+# https://c1zwsl05s5.execute-api.us-west-1.amazonaws.com/dev
 
 
 # SECTION 1:  IMPORT FILES AND FUNCTIONS
