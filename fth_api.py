@@ -1418,6 +1418,117 @@ class Login(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
+            phone = data['phone']
+            password = data.get('password')
+            social_id = data.get('social_id')
+            signup_platform = data.get('signup_platform')
+            query = """
+                    # CUSTOMER QUERY 1: LOGIN
+                    SELECT customer_uid,
+                        customer_last_name,
+                        customer_first_name,
+                        customer_email,
+                        password_hashed,
+                        email_verified,
+                        user_social_media,
+                        user_access_token,
+                        user_refresh_token,
+                        user_access_token,
+                        user_refresh_token,
+                        social_id
+                    FROM fth.customers c
+                    WHERE customer_phone_num = \'""" + phone + """\';
+                    """
+            items = execute(query, 'get', conn)
+            #print('Password', password)
+            # print(items)
+
+            if items['code'] != 280:
+                response['message'] = "Internal Server Error."
+                response['code'] = 500
+                return response
+            elif not items['result']:
+                items['message'] = 'Email Not Found. Please signup'
+                items['result'] = ''
+                items['code'] = 404
+                return items
+            else:
+                # print(items['result'])
+                #print('sc: ', items['result'][0]['user_social_media'])
+
+                # checks if login was by social media
+                if password and items['result'][0]['user_social_media'] != 'NULL' and items['result'][0]['user_social_media'] != None:
+                    response['message'] = "Need to login by Social Media"
+                    response['code'] = 401
+                    return response
+
+               # nothing to check
+                elif (password is None and social_id is None) or (password is None and items['result'][0]['user_social_media'] == 'NULL'):
+                    response['message'] = "Enter password else login from social media"
+                    response['code'] = 405
+                    return response
+
+                # compare passwords if user_social_media is false
+                elif (items['result'][0]['user_social_media'] == 'NULL' or items['result'][0]['user_social_media'] == None) and password is not None:
+
+                    if items['result'][0]['password_hashed'] != password:
+                        items['message'] = "Wrong password"
+                        items['result'] = ''
+                        items['code'] = 406
+                        return items
+
+                    if ((items['result'][0]['email_verified']) == '0') or (items['result'][0]['email_verified'] == "FALSE"):
+                        response['message'] = "Account need to be verified by email."
+                        response['code'] = 407
+                        return response
+
+                # compare the social_id because it never expire.
+                elif (items['result'][0]['user_social_media']) != 'NULL':
+
+                    if signup_platform != items['result'][0]['user_social_media']:
+                        items['message'] = "Wrong social media used for signup. Use \'" + \
+                            items['result'][0]['user_social_media'] + "\'."
+                        items['result'] = ''
+                        items['code'] = 411
+                        return items
+
+                    if (items['result'][0]['social_id'] != social_id):
+                        # print(items['result'][0]['social_id'])
+
+                        items['message'] = "Cannot Authenticated. Social_id is invalid"
+                        items['result'] = ''
+                        items['code'] = 408
+                        return items
+
+                else:
+                    string = " Cannot compare the password or social_id while log in. "
+                    #print("*" * (len(string) + 10))
+                    #print(string.center(len(string) + 10, "*"))
+                    #print("*" * (len(string) + 10))
+                    response['message'] = string
+                    response['code'] = 500
+                    return response
+                del items['result'][0]['password_hashed']
+                del items['result'][0]['email_verified']
+
+                query = "SELECT * from fth.customers WHERE customer_phone_num = \'" + phone + "\';"
+                items = execute(query, 'get', conn)
+                items['message'] = "Authenticated successfully."
+                items['code'] = 200
+                return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+
+class SocialLogin(Resource):
+    def post(self):
+        response = {}
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
             email = data['email']
             password = data.get('password')
             social_id = data.get('social_id')
@@ -14244,6 +14355,7 @@ class Add_New_Ingredient(Resource):
 #  parameters. Please check the documentation for the right format of those named#
 #  parameters.                                                                   #
 api.add_resource(Login, '/api/v2/login')
+api.add_resource(SocialLogin, '/api/v2/SocialLogin')
 #  * The "Login" endpoint accepts only POST request with at least 2 parameters   #
 # in its body. The first param is "email" and the second one is either "password"#
 # or "refresh_token". We are gonna re-use the token we got from facebook or      #
