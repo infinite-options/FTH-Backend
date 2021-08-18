@@ -1817,56 +1817,65 @@ class Change_Password(Resource):
             disconnect(conn)
 
 
-class Reset_Password(Resource):
+class set_temp_password(Resource):
     def get_random_string(self, stringLength=8):
         lettersAndDigits = string.ascii_letters + string.digits
         return "".join([random.choice(lettersAndDigits) for i in range(stringLength)])
 
-    def get(self):
+    def post(self):
         response = {}
         try:
             conn = connect()
             # search for email;
-            email = request.args['email']
+            data = request.get_json(force=True)
+            email = data['email']
 
-            query = """SELECT * FROM customers
+            query = """SELECT * FROM sf.customers
                     WHERE customer_email ='""" + email + "';"
-            customer_lookup = simple_get_execute(
-                query, "RESET PASSWORD QUERY", conn)
-            if customer_lookup[1] != 200:
+            customer_lookup = execute(query, "get", conn)
+            if customer_lookup['code'] != 280:
+                customer_lookup['message'] = 'check sql query'
                 return customer_lookup
-            customer_uid = customer_lookup[0]['result'][0]['customer_uid']
+            if not customer_lookup['result']:
+                customer_lookup['message'] = 'No such email exists'
+                return customer_lookup
+
+            if customer_lookup['result'][0]['user_social_media'] != 'NULL':
+                return 'Need to do login via social'
+
+            customer_uid = customer_lookup['result'][0]['customer_uid']
             pass_temp = self.get_random_string()
             salt = getNow()
             pass_temp_hashed = sha512((pass_temp + salt).encode()).hexdigest()
+            # print(pass_temp_hashed)
             query = """
-                    UPDATE customers SET password_hashed = '""" + pass_temp_hashed + """'
+                    UPDATE sf.customers SET password_hashed = '""" + pass_temp_hashed + """'
                      , password_salt = '""" + salt + """' 
                      WHERE customer_uid = '""" + customer_uid + """';
                     """
             # update database with temp password
-            query_result = simple_post_execute(
-                [query], ["UPDATE RESET PASSWORD"], conn)
-            if query_result[1] != 201:
+            query_result = execute(query, 'post', conn)
+            if query_result['code'] != 281:
+                query_result['message'] = 'check sql query'
                 return query_result
             # send an email to client
-            print("mail 1")
-            msg = Message("Email Verification", sender='support@mealsfor.me',
-                          recipients=[email], bcc='support@mealsfor.me')
+            #print("mail 1")
+            msg = Message("Email Verification", sender='support@servingfresh.me',
+                          recipients=[email], bcc='support@servingfresh.me')
             msg.body = "Your temporary password is {}. Please use it to reset your password".format(
                 pass_temp)
-            print("mail 2")
+            #print("mail 2")
             # msg2 = Message("Email Verification", sender='support@mealsfor.me', recipients='support@mealsfor.me')
             # supportmessage = str(email) + " has requested a temporary password, and it is {}."
-            # #print(supportmessage)
+            # ##print(supportmessage)
             # msg2.body = supportmessage.format(pass_temp)
-            print("ready to send")
+            #print("ready to send")
             mail.send(msg)
-            # print("sending 2")
-            # print(msg2.body)
-            # print("actual sending 2")
+            # #print("sending 2")
+            # #print(msg2.body)
+            # #print("actual sending 2")
             # mail.send(msg2)
-            print("both sent")
+            #print("both sent")
             response['message'] = "A temporary password has been sent"
             return response, 200
         except:
@@ -5454,11 +5463,13 @@ class update_farmer_item_admin(Resource):
 
 class adminCustomerInfo(Resource):
     def get(self, uid):
+        print("IN admincustomerinfo")
         try:
             conn = connect()
             if uid == 'all':
+                print("ALL")
                 query = """ 
-                        SELECT customer_uid, customer_created_at, customer_first_name, customer_last_name, user_social_media, customer_phone_num, customer_email, customer_address, customer_unit, customer_city, customer_state, customer_zip, customer_lat, customer_long, favorite_produce, purchase_uid, purchase_date, purchase_id, purchase_status, pur_customer_uid, pur_business_uid,  delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, delivery_latitude, delivery_longitude, payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, subtotal, amount_discount, service_fee, delivery_fee, driver_tip, taxes, amount_due, amount_paid
+                        SELECT customer_uid, customer_created_at, customer_first_name, customer_last_name, customer_phone_num, customer_email, customer_address, customer_unit, customer_city, customer_state, customer_zip, customer_lat, customer_long, favorites, purchase_uid, purchase_date, purchase_id, purchase_status, pur_customer_uid, pur_business_uid,  delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, delivery_latitude, delivery_longitude, payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, subtotal, amount_discount, service_fee, delivery_fee, driver_tip, taxes, amount_due, amount_paid
                         ,COUNT(pur.purchase_uid) AS total_orders,max(pur.purchase_date) AS last_order_date, SUM(amount_paid) as total_revenue
                         FROM fth.customers cus,fth.purchases pur ,fth.payments pay
                         WHERE pur.purchase_uid=pay.pay_purchase_id and pur.purchase_status='ACTIVE' and cus.customer_uid=pur.pur_customer_uid 
@@ -5466,7 +5477,7 @@ class adminCustomerInfo(Resource):
                         """
             else:
                 query = """ 
-                        SELECT customer_uid, customer_created_at, customer_first_name, customer_last_name, user_social_media, customer_phone_num, customer_email, customer_address, customer_unit, customer_city, customer_state, customer_zip, customer_lat, customer_long, favorite_produce, purchase_uid, purchase_date, purchase_id, purchase_status, pur_customer_uid, pur_business_uid,  delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, delivery_latitude, delivery_longitude, payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, subtotal, amount_discount, service_fee, delivery_fee, driver_tip, taxes, amount_due, amount_paid
+                        SELECT customer_uid, customer_created_at, customer_first_name, customer_last_name, customer_phone_num, customer_email, customer_address, customer_unit, customer_city, customer_state, customer_zip, customer_lat, customer_long, favorites, purchase_uid, purchase_date, purchase_id, purchase_status, pur_customer_uid, pur_business_uid,  delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, delivery_latitude, delivery_longitude, payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, subtotal, amount_discount, service_fee, delivery_fee, driver_tip, taxes, amount_due, amount_paid
                         ,COUNT(pur.purchase_uid) AS total_orders,max(pur.purchase_date) AS last_order_date, SUM(amount_paid) as total_revenue
                         FROM fth.customers cus,fth.purchases pur ,fth.payments pay
                         WHERE pur.purchase_uid=pay.pay_purchase_id and pur.purchase_status='ACTIVE' and cus.customer_uid=pur.pur_customer_uid and cus.customer_uid = \'""" + uid + """\'
@@ -5791,7 +5802,7 @@ class all_businesses(Resource):
             conn = connect()
 
             query = """
-                    SELECT business_uid, business_name FROM fth.businesses; 
+                    SELECT * FROM fth.businesses; 
                     """
             items = execute(query, 'get', conn)
             if items['code'] == 280:
@@ -6189,24 +6200,27 @@ class Menu (Resource):
             conn = connect()
             data = request.get_json(force=True)
             print("Received data: ", data)
-
             menu_date = data['menu_date']
             menu_category = data['menu_category']
             menu_type = data['menu_type']
             meal_cat = data['meal_cat']
             menu_meal_id = data['menu_meal_id']
             default_meal = data['default_meal']
-            delivery_days = "'" + data['delivery_days'] + "'"
+
+            delivery_days = str(data['delivery_days'])
+            delivery_days = "'" + delivery_days.replace("'", "\"") + "'"
+
             meal_price = data['meal_price']
             print("1")
             menu_uid = get_new_id("CALL new_menu_uid", "get_new_menu_ID", conn)
+
             if menu_uid[1] != 200:
                 return menu_uid
             menu_uid = menu_uid[0]['result']
             print(menu_uid)
 
             query = """
-                    INSERT INTO menu
+                    INSERT INTO fth.menu
                     SET menu_uid = '""" + menu_uid + """',
                         menu_date = '""" + menu_date + """',
                         menu_category = '""" + menu_category + """',
@@ -6217,7 +6231,9 @@ class Menu (Resource):
                         delivery_days = """ + delivery_days + """,
                         menu_meal_price = '""" + meal_price + """';
                     """
+
             response = simple_post_execute([query], [__class__.__name__], conn)
+            print(response)
             if response[1] != 201:
                 return response
             response[0]['menu_uid'] = menu_uid
@@ -6240,17 +6256,12 @@ class Menu (Resource):
             menu_meal_id = data['menu_meal_id']
             default_meal = data['default_meal']
             print("2")
-            # print(data["delivery_days"])
-            #print([str(item) for item in data['delivery_days']])
-            # print(type(data["delivery_days"]))
-            #temp=  data["delivery_days"].split(",")
-            # ''.join([letter for item in temp if letter.isalnum()])#data["delivery_days"].split(',')
-            delivery_days = data["delivery_days"]
-            # print(delivery_days)
+            delivery_days = str(data['delivery_days'])
+            delivery_days = "'" + delivery_days.replace("'", "\"") + "'"
             meal_price = str(data['meal_price'])
             print("3")
             query = """
-                    UPDATE menu
+                    UPDATE fth.menu
                     SET menu_date = '""" + menu_date + """',
                         menu_category = '""" + menu_category + """',
                         menu_type = '""" + menu_type + """',
@@ -8422,6 +8433,104 @@ class adminInfo(Resource):
 
 
 #  -- ADMIN NOTIFICATION RELATED ENDPOINTS    -----------------------------------------
+
+class notifications(Resource):
+    def post(self, action):
+
+        conn = connect()
+
+        if action == 'get':
+            query = """
+                    SELECT * FROM sf.notifications;
+                    """
+            items = execute(query, 'get', conn)
+
+            if items['code'] != 280:
+                items['message'] = 'check sql query'
+
+            return items
+
+        elif action == 'post':
+
+            content = request.form.get('content')
+            type = request.form.get('type')
+            uids = request.form.get('uids')
+            uids = str(uids)
+            uids = "'" + uids.replace("'", "\"") + "'"
+            query_id = """
+                        CALL sf.new_notification_uid();
+                        """
+            items = execute(query_id, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'check sql query for id'
+                return items
+
+            id = items['result'][0]['new_id']
+
+            query = """
+                    INSERT INTO sf.notifications 
+                    (notification_uid, content, type, customer_uids) 
+                    VALUES 
+                    (\'""" + id + """\', \'""" + content + """\',\'""" + type + """\',""" + uids + """);
+                    """
+            # print(query)
+            items = execute(query, 'post', conn)
+            if items['code'] != 281:
+                items['message'] = 'check sql query'
+
+            return items
+        else:
+            return 'choose correct option'
+
+
+class notification_groups(Resource):
+    def post(self, action):
+
+        conn = connect()
+
+        if action == 'get':
+            query = """
+                    SELECT * FROM sf.notification_groups;
+                    """
+            items = execute(query, 'get', conn)
+
+            if items['code'] != 280:
+                items['message'] = 'check sql query'
+
+            return items
+
+        elif action == 'post':
+
+            name = request.form.get('name')
+            type = request.form.get('type')
+            uids = request.form.get('uids')
+            uids = str(uids)
+            uids = "'" + uids.replace("'", "\"") + "'"
+            query_id = """
+                        CALL sf.new_notification_group_uid();
+                        """
+            items = execute(query_id, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'check sql query for id'
+                return items
+
+            id = items['result'][0]['new_id']
+
+            query = """
+                    INSERT INTO sf.notification_groups 
+                    (note_group_uid, name, type, customer_uids) 
+                    VALUES 
+                    (\'""" + id + """\', \'""" + name + """\',\'""" + type + """\',""" + uids + """);
+                    """
+            # print(query)
+            items = execute(query, 'post', conn)
+            if items['code'] != 281:
+                items['message'] = 'check sql query'
+
+            return items
+        else:
+            return 'choose correct option'
+
 
 class Create_Group(Resource):
 
@@ -10649,76 +10758,6 @@ class get_Zones (Resource):
             return items
         except:
             print("Error happened while getting zones")
-            raise BadRequest('Request failed, please try again later.')
-        finally:
-            disconnect(conn)
-            print('process completed')
-
-
-class Update_Zone (Resource):
-    def put(self):
-        try:
-            conn = connect()
-            data = request.get_json(force=True)
-            print("0")
-            zone_uid = data['zone_uid']
-            z_business_uid = data['z_business_uid']
-            area = data['area']
-            zone = data['zone']
-            zone_name = data['zone_name']
-            print("0.5")
-            z_businesses = data['z_businesses']
-            z_delivery_day = data['z_delivery_day']
-            z_delivery_time = data['z_delivery_time']
-            z_accepting_day = data['z_accepting_day']
-            z_accepting_time = data['z_accepting_time']
-            service_fee = data['service_fee']
-            tax_rate = data['tax_rate']
-            delivery_fee = data['delivery_fee']
-            LB_long = data['LB_long']
-            LB_lat = data['LB_lat']
-            LT_long = data['LT_long']
-            LT_lat = data['LT_lat']
-            RT_long = data['RT_long']
-            RT_lat = data['RT_lat']
-            RB_long = data['RB_long']
-            RB_lat = data['RB_lat']
-
-            print("1")
-            query = """
-                    update zones
-                    set
-                        z_business_uid= '""" + z_business_uid + """',
-                        area= '""" + area + """',
-                        zone= '""" + zone + """',
-                        zone_name= '""" + zone_name + """',
-                        z_businesses= '""" + z_businesses + """',
-                        z_delivery_day= '""" + z_delivery_day + """',
-                        z_delivery_time= '""" + z_delivery_time + """',
-                        z_accepting_day= '""" + z_accepting_day + """',
-                        z_accepting_time= '""" + z_accepting_time + """',
-                        service_fee = \'""" + service_fee + """\',
-                        tax_rate = \'""" + tax_rate + """\',
-                        delivery_fee = \'""" + delivery_fee + """\',
-                        LB_long = \'""" + LB_long + """\',
-                        LB_lat = \'""" + LB_lat + """\',
-                        LT_long = \'""" + LT_long + """\',
-                        LT_lat = \'""" + LT_lat + """\',
-                        RT_long = \'""" + RT_long + """\',
-                        RT_lat = \'""" + RT_lat + """\',
-                        RB_long = \'""" + RB_long + """\',
-                        RB_lat = \'""" + RB_lat + """\'
-                    where zone_uid= '""" + zone_uid + """';
-                    """
-            items = execute(query, 'post', conn)
-            print(items)
-            if items['code'] != 281:
-                items['message'] = 'Check sql query'
-                return items
-            #items['result'] = items['result'][0]
-            return items
-        except:
-            print("Error happened while updating zones")
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
@@ -14362,7 +14401,7 @@ api.add_resource(SocialLogin, '/api/v2/SocialLogin')
 # google for our site ahttps://ht56vci4v9.execute-api.us-west-1.amazonaws.com/dev/api/v2/meals_selected_specific?customer_uid=100-000334&purchase_id=400-000436&menu_date=2020-11-22+00:00:00 ogin, '/api/v2/apple_login', '/')
 api.add_resource(Change_Password, '/api/v2/change_password')
 
-api.add_resource(Reset_Password, '/api/v2/reset_password')
+api.add_resource(set_temp_password, '/api/v2/set_temp_password')
 #--------------------------------------------------------------------------------#
 
 #---------------------------- Select Meal plan pages ----------------------------#
@@ -14516,6 +14555,9 @@ api.add_resource(Get_Upcoming_Menu_Date, '/api/v2/upcoming_menu_dates')
 api.add_resource(get_Zones, '/api/v2/get_Zones')
 api.add_resource(update_zones, '/api/v2/update_zones/<string:action>')
 #---NOTIFICATIONS ADMIN ---#
+api.add_resource(notifications, '/api/v2/notifications/<string:action>')
+api.add_resource(notification_groups,
+                 '/api/v2/notification_groups/<string:action>')
 api.add_resource(Create_Group, '/api/v2/Create_Group')
 api.add_resource(Send_Notification, '/api/v2/Send_Notification/<string:role>')
 api.add_resource(update_guid_notification,
