@@ -852,6 +852,8 @@ class createAccount(Resource):
             firstName = data['first_name']
             lastName = data['last_name']
             phone = data['phone_number']
+            id_type = data['id_type']
+            id_number = data['id_number']
             address = data['address']
             unit = data['unit'] if data.get('unit') is not None else 'NULL'
             social_id = data['social_id'] if data.get(
@@ -941,6 +943,8 @@ class createAccount(Resource):
                                     customer_first_name = \'''' + firstName + '''\',
                                     customer_last_name = \'''' + lastName + '''\',
                                     customer_phone_num = \'''' + phone + '''\',
+                                    id_type = \' ''' + id_type + ''' \',
+                                    id_number = \' ''' + id_number + ''' \',
                                     customer_address = \'''' + address + '''\',
                                     customer_unit = \'''' + unit + '''\',
                                     customer_city = \'''' + city + '''\',
@@ -989,6 +993,8 @@ class createAccount(Resource):
                                             customer_last_name = \'""" + lastName + """\',
                                             customer_phone_num = \'""" + phone + """\',
                                             customer_email = \'""" + email + """\',
+                                            id_type = \' ''' + id_type + ''' \',
+                                            id_number = \' ''' + id_number + ''' \',
                                             customer_address = \'""" + address + """\',
                                             customer_unit = \'""" + unit + """\',
                                             customer_city = \'""" + city + """\',
@@ -1893,17 +1899,17 @@ class AccountSalt(Resource):
 
             data = request.get_json(force=True)
             print(data)
-            email = data['email']
+            phone = data['phone']
             query = """
                     SELECT password_algorithm, 
                             password_salt,
                             user_social_media 
                     FROM fth.customers cus
-                    WHERE customer_email = \'""" + email + """\';
+                    WHERE customer_phone_num = \'""" + phone + """\';
                     """
             items = execute(query, 'get', conn)
             if not items['result']:
-                items['message'] = "Email doesn't exists"
+                items['message'] = "Account doesn't exists"
                 items['code'] = 404
                 return items
             if items['result'][0]['user_social_media'] != 'NULL':
