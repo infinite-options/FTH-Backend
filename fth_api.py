@@ -847,7 +847,7 @@ class createAccount(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-            # print(data)
+            print(data)
             email = data['email']
             firstName = data['first_name']
             lastName = data['last_name']
@@ -943,8 +943,8 @@ class createAccount(Resource):
                                     customer_first_name = \'''' + firstName + '''\',
                                     customer_last_name = \'''' + lastName + '''\',
                                     customer_phone_num = \'''' + phone + '''\',
-                                    id_type = \' ''' + id_type + ''' \',
-                                    id_number = \' ''' + id_number + ''' \',
+                                    id_type = \'''' + id_type + '''\',
+                                    id_number = \'''' + id_number + '''\',
                                     customer_address = \'''' + address + '''\',
                                     customer_unit = \'''' + unit + '''\',
                                     customer_city = \'''' + city + '''\',
@@ -992,9 +992,9 @@ class createAccount(Resource):
                                             customer_first_name = \'""" + firstName + """\',
                                             customer_last_name = \'""" + lastName + """\',
                                             customer_phone_num = \'""" + phone + """\',
+                                            id_type = \'""" + id_type + """\',
+                                            id_number = \'""" + id_number + """\',
                                             customer_email = \'""" + email + """\',
-                                            id_type = \' ''' + id_type + ''' \',
-                                            id_number = \' ''' + id_number + ''' \',
                                             customer_address = \'""" + address + """\',
                                             customer_unit = \'""" + unit + """\',
                                             customer_city = \'""" + city + """\',
@@ -1425,15 +1425,20 @@ class Login(Resource):
             conn = connect()
             data = request.get_json(force=True)
             phone = data['phone']
+            id_number = data['id_number']
             password = data.get('password')
             social_id = data.get('social_id')
             signup_platform = data.get('signup_platform')
+
             query = """
                     # CUSTOMER QUERY 1: LOGIN
                     SELECT customer_uid,
                         customer_last_name,
                         customer_first_name,
                         customer_email,
+                        customer_phone_num,
+                        id_type,
+                        id_number,
                         password_hashed,
                         email_verified,
                         user_social_media,
