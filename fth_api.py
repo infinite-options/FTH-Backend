@@ -17,7 +17,7 @@ from flask_cors import CORS
 import jwt
 import boto3
 from stripe.api_resources.tax_rate import TaxRate
-from werkzeug.exceptions import BadRequest, NotFound
+from werkzeug.exceptions import BadRequest, LengthRequired, NotFound
 
 from dateutil.relativedelta import *
 from decimal import Decimal
@@ -1421,36 +1421,59 @@ def sms_service(phone, name):
 class Login(Resource):
     def post(self):
         response = {}
+        print("In login")
         try:
             conn = connect()
             data = request.get_json(force=True)
             phone = data['phone']
-            id_number = data['id_number']
             password = data.get('password')
             social_id = data.get('social_id')
             signup_platform = data.get('signup_platform')
+            print("after data", data)
+            if(len(phone) >= 10):
+                query = """
+                        # CUSTOMER QUERY 1: LOGIN
+                        SELECT customer_uid,
+                            customer_last_name,
+                            customer_first_name,
+                            customer_email,
+                            customer_phone_num,
+                            id_type,
+                            id_number,
+                            password_hashed,
+                            email_verified,
+                            user_social_media,
+                            user_access_token,
+                            user_refresh_token,
+                            user_access_token,
+                            user_refresh_token,
+                            social_id
+                        FROM fth.customers c
+                        WHERE customer_phone_num = \'""" + phone + """\';
+                        """
+                items = execute(query, 'get', conn)
 
-            query = """
-                    # CUSTOMER QUERY 1: LOGIN
-                    SELECT customer_uid,
-                        customer_last_name,
-                        customer_first_name,
-                        customer_email,
-                        customer_phone_num,
-                        id_type,
-                        id_number,
-                        password_hashed,
-                        email_verified,
-                        user_social_media,
-                        user_access_token,
-                        user_refresh_token,
-                        user_access_token,
-                        user_refresh_token,
-                        social_id
-                    FROM fth.customers c
-                    WHERE customer_phone_num = \'""" + phone + """\';
-                    """
-            items = execute(query, 'get', conn)
+            else:
+                query = """
+                        # CUSTOMER QUERY 1: LOGIN
+                        SELECT customer_uid,
+                            customer_last_name,
+                            customer_first_name,
+                            customer_email,
+                            customer_phone_num,
+                            id_type,
+                            password_hashed,
+                            email_verified,
+                            user_social_media,
+                            user_access_token,
+                            user_refresh_token,
+                            user_access_token,
+                            user_refresh_token,
+                            social_id
+                        FROM fth.customers c
+                        WHERE id_number = \'""" + phone + """\';
+                        """
+                items = execute(query, 'get', conn)
             #print('Password', password)
             # print(items)
 
@@ -1521,9 +1544,12 @@ class Login(Resource):
                     return response
                 del items['result'][0]['password_hashed']
                 del items['result'][0]['email_verified']
-
-                query = "SELECT * from fth.customers WHERE customer_phone_num = \'" + phone + "\';"
-                items = execute(query, 'get', conn)
+                if(len(phone) >= 10):
+                    query = "SELECT * from fth.customers WHERE customer_phone_num = \'" + phone + "\';"
+                    items = execute(query, 'get', conn)
+                else:
+                    query = "SELECT * from fth.customers WHERE id_number = \'" + phone + "\';"
+                    items = execute(query, 'get', conn)
                 items['message'] = "Authenticated successfully."
                 items['code'] = 200
                 return items
@@ -1841,7 +1867,7 @@ class set_temp_password(Resource):
             data = request.get_json(force=True)
             email = data['email']
 
-            query = """SELECT * FROM sf.customers
+            query = """SELECT * FROM fth.customers
                     WHERE customer_email ='""" + email + "';"
             customer_lookup = execute(query, "get", conn)
             if customer_lookup['code'] != 280:
@@ -1860,7 +1886,7 @@ class set_temp_password(Resource):
             pass_temp_hashed = sha512((pass_temp + salt).encode()).hexdigest()
             # print(pass_temp_hashed)
             query = """
-                    UPDATE sf.customers SET password_hashed = '""" + pass_temp_hashed + """'
+                    UPDATE fth.customers SET password_hashed = '""" + pass_temp_hashed + """'
                      , password_salt = '""" + salt + """' 
                      WHERE customer_uid = '""" + customer_uid + """';
                     """
@@ -1905,6 +1931,7 @@ class AccountSalt(Resource):
             data = request.get_json(force=True)
             print(data)
             phone = data['phone']
+
             query = """
                     SELECT password_algorithm, 
                             password_salt,
@@ -5039,8 +5066,8 @@ class Businesses(Resource):
             disconnect(conn)
 
 
-class farmer_order_summary_page(Resource):
-    def get(self, delivery_date, business_uid):
+class food_bank_order_summary_page(Resource):
+    def get(self,delivery_date,business_uid):
         try:
             conn = connect()
             year, month, day = (int(x) for x in delivery_date.split('-'))
@@ -5054,7 +5081,7 @@ class farmer_order_summary_page(Resource):
             business_items = execute(business_serving, 'get', conn)
             if business_items['code'] != 280:
                 business_items['message'] = 'check sql query'
-
+                
             all_bus = set()
             for bus_vals in business_items['result']:
 
@@ -5062,7 +5089,7 @@ class farmer_order_summary_page(Resource):
                 all_bus.update(bus_vals)
             all_bus = str(tuple(list(all_bus)))
 
-            query = """
+            query ="""
                     SELECT  name,img,unit,business_name,business_price,price,(price-business_price) AS profit, SUM(qty) AS quantity, SUM(qty*business_price) AS total_revenue, SUM(qty*(price-business_price)) AS total_profit,
                         (SELECT CONCAT(GROUP_CONCAT(business_name ORDER BY business_name ASC SEPARATOR ','),',', COUNT(business_name))
                             FROM fth.businesses, fth.supply WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS farms
@@ -5085,21 +5112,24 @@ class farmer_order_summary_page(Resource):
                     GROUP BY name
                     Order BY name;
                     """
-            items = execute(query, 'get', conn)
+            items = execute(query,'get',conn)
             if items['code'] != 280:
                 items['message'] = 'check sql query'
                 return items
-
-            get_fun = farmer_packing_data()
-            packing_data = get_fun.get(business_uid, delivery_date, 'function')
-
-            for i, vals in enumerate(items['result']):
+            print('after execute')
+            get_fun = food_bank_packing_data()
+            packing_data = get_fun.get(business_uid,delivery_date,'function')
+            print('after packing_data')
+            print(packing_data)
+            for i,vals in enumerate(items['result']):
                 if vals['name'] in packing_data:
                     items['result'][i]['packing'] = packing_data[vals['name']][-1]
+                    print('items if',items['result'])
                 else:
                     items.result[i]['packing'] = ''
-
+                    print('items else',items['result'])
             return items
+            
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -5181,22 +5211,22 @@ class business_details_update(Resource):
                 return item
 
             else:
-                #print("IN ELSE")
-                # print(data)
-                # print('IN')
+                print("IN ELSE")
+                print(data)
+                print('IN')
                 business_association = str(data['business_association'])
-                business_association = "'" + \
-                    business_association.replace("'", "\"") + "'"
+                business_association = "'" + business_association.replace("'", "\"") + "'"
+                print(business_association)
                 business_hours = str(data['business_hours'])
                 business_hours = "'" + business_hours.replace("'", "\"") + "'"
-                business_accepting_hours = str(
-                    data['business_accepting_hours'])
-                business_accepting_hours = "'" + \
-                    business_accepting_hours.replace("'", "\"") + "'"
+                print(business_hours)
+                business_accepting_hours = str(data['business_accepting_hours'])
+                business_accepting_hours = "'" + business_accepting_hours.replace("'", "\"") + "'"
+                print(business_accepting_hours)
                 business_delivery_hours = str(data['business_delivery_hours'])
-                business_delivery_hours = "'" + \
-                    business_delivery_hours.replace("'", "\"") + "'"
-                # print('OUT')
+                business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
+                print(business_delivery_hours)
+                print('OUT')
                 query = """
                                UPDATE fth.businesses
                                SET 
@@ -5237,9 +5267,10 @@ class business_details_update(Resource):
                                business_status = \'""" + data["business_status"] + """\'
                                WHERE business_uid = \'""" + data["business_uid"] + """\' ;
                              """
-                # print(query)
+                print("sfter query")
+                print(query)
                 item = execute(query, 'post', conn)
-                # print(item)
+                print(item)
                 if item['code'] == 281:
                     item['code'] = 200
                     item['message'] = 'Business info updated'
@@ -5417,7 +5448,7 @@ class business_delivery_details(Resource):
             disconnect(conn)
 
 
-class admin_farmer_items(Resource):
+class admin_food_bank_items(Resource):
     def get(self, business_uid):
         response = {}
         items = {}
@@ -5425,7 +5456,7 @@ class admin_farmer_items(Resource):
             conn = connect()
             query = """
                     SELECT *
-                    FROM fth.sf_items item 
+                    FROM fth.fth_items item 
                     LEFT JOIN fth.supply sup ON item.item_uid = sup_item_uid WHERE sup.itm_business_uid= \'""" + business_uid + """\' AND item_status != 'Hidden'; 
                     """
             items = execute(query, 'get', conn)
@@ -5439,13 +5470,15 @@ class admin_farmer_items(Resource):
             disconnect(conn)
 
 
-class update_farmer_item_admin(Resource):
+class update_food_bank_item_admin(Resource):
     def post(self, action):
         try:
             conn = connect()
             print("in")
             data = request.get_json(force=True)
+            print(data)
             if action == 'update':
+                print("in if")
                 query = """
                     UPDATE 
                     fth.supply 
@@ -5463,6 +5496,7 @@ class update_farmer_item_admin(Resource):
                         WHERE (supply_uid = \'""" + data['supply_uid'] + """\');
                         """
             items = execute(query, 'post', conn)
+            print(items)
             return items
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -5496,13 +5530,14 @@ class adminCustomerInfo(Resource):
                         """
 
             items = execute(query, 'get', conn)
-
+            print("1")
             items['message'] = 'Info Gathered'
-
+            
             query = """
                         SELECT * from fth.zones;
                     """
             items_zone = execute(query, 'get', conn)
+            print("2")
             if items_zone['code'] != 280:
                 items_zone['message'] = 'check sql query'
 
@@ -5538,14 +5573,16 @@ class adminCustomerInfo(Resource):
                         WHERE zone IN """ + str(tuple(zones)) + """;
                         """
                 items_name = execute(query, 'get', conn)
-
+                print("4", vals_itm)
                 zone_name = items_name['result'][0]['zone_name']
-
+                
                 vals_itm['zone'] = zone_name
+                print("6",vals_itm['zone'])
                 final_res.append(vals_itm)
+                print("7",final_res)
 
             items['result'] = final_res
-
+            print(items['result'])
             return items
 
         except:
@@ -5581,7 +5618,7 @@ class history(Resource):
 #  -- ORDERS ADMIN RELATED ENDPOINTS    -----------------------------------------
 
 
-class farmer_packing_data(Resource):
+class food_bank_packing_data(Resource):
     def get(self, uid, delivery_date, action):
         try:
 
@@ -5599,7 +5636,7 @@ class farmer_packing_data(Resource):
             business_name = items['result'][0]['business_name']
             query = """
                     SELECT obf.*, pay.start_delivery_date, pay.payment_uid, itm.business_price, SUM(obf.qty) AS total_qty, SUM(itm.business_price) AS total_price, itm.item_unit, itm.item_photo
-                    FROM fth.orders_by_farm AS obf, fth.payments AS pay, (SELECT * FROM fth.sf_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) AS itm
+                    FROM fth.orders_by_farm AS obf, fth.payments AS pay, (SELECT * FROM fth.fth_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) AS itm
                     WHERE obf.purchase_uid = pay.pay_purchase_uid AND obf.item_uid = itm.item_uid AND obf.itm_business_uid = itm.itm_business_uid AND pay.start_delivery_date LIKE \'""" + delivery_date + '%' + """\' AND obf.itm_business_uid = \'""" + uid + """\'
                     GROUP BY  obf.delivery_address, obf.delivery_unit, obf.delivery_city, obf.delivery_state, obf.delivery_zip, obf.item_uid;
                     """
@@ -5676,7 +5713,7 @@ class replace_produce_admin(Resource):
             farm_uid = farm_items['result'][0]['business_uid']
             produce_query = """
                                 SELECT item_uid 
-                                FROM sf_items
+                                FROM fth_items
                                 WHERE item_name = \'""" + produce_name + """\';
                                 
                              """
@@ -5689,7 +5726,7 @@ class replace_produce_admin(Resource):
 
             query_prod = """
                         SELECT item_uid, business_price, item_photo
-                        FROM (SELECT * FROM fth.sf_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) as itm
+                        FROM (SELECT * FROM fth.fth_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) as itm
                         WHERE itm.item_name =  \'""" + produce_name + """\' AND itm.itm_business_uid = \'""" + farm_uid + """\';
                         """
 
@@ -5836,7 +5873,7 @@ class admin_items(Resource):
             conn = connect()
             query = """
                     SELECT *, (SELECT business_name FROM fth.businesses WHERE business_uid = itm_business_uid) AS business_name
-                    FROM fth.sf_items 
+                    FROM fth.fth_items 
                     LEFT JOIN fth.supply 
                     ON item_uid = sup_item_uid
                     ORDER BY item_name , business_price;
@@ -5916,7 +5953,7 @@ class update_item_admin(Resource):
             if action == 'update':
                 query = """
                     UPDATE 
-                    fth.sf_items 
+                    fth.fth_items 
                     SET 
                     item_name = \'""" + data['item_name'] + """\', 
                     item_type = \'""" + data['item_type'] + """\',
@@ -5932,7 +5969,7 @@ class update_item_admin(Resource):
                 print(query)
             else:
                 query = """
-                        DELETE FROM fth.sf_items WHERE (item_uid = \'""" + data['item_uid'] + """\');
+                        DELETE FROM fth.fth_items WHERE (item_uid = \'""" + data['item_uid'] + """\');
                         """
             items = execute(query, 'post', conn)
             return items
@@ -6010,7 +6047,7 @@ class addItems_Prime(Resource):
                     item_display = request.form.get('item_display') if request.form.get(
                         'item_display') is not None else 'NULL'
                     print('data done')
-                    query = ["CALL fth.new_sf_items_uid;"]
+                    query = ["CALL fth.new_fth_items_uid;"]
                     NewIDresponse = execute(query[0], 'get', conn)
                     NewID = NewIDresponse['result'][0]['new_id']
                     TimeStamp = datetime.strftime(
@@ -6020,7 +6057,7 @@ class addItems_Prime(Resource):
 
                     print('before query', TimeStamp)
                     query_insert = '''
-                                INSERT INTO fth.sf_items
+                                INSERT INTO fth.fth_items
                                 SET 
                                 item_uid = \'''' + NewID + '''\',
                                 created_at = \'''' + TimeStamp + '''\',
@@ -6057,7 +6094,7 @@ class addItems_Prime(Resource):
                 # print('status',item_status)
 
                 query = """
-                        SELECT * FROM (SELECT * FROM fth.sf_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) as itm
+                        SELECT * FROM (SELECT * FROM fth.fth_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) as itm
                         WHERE itm.item_uid = \'""" + item_uid + """\' AND itm.itm_business_uid = \'""" + bus_uid + """\';
                         """
                 items = execute(query, 'get', conn)
@@ -6094,7 +6131,7 @@ class addItems_Prime(Resource):
                     if item_photo == 'NULL':
                         # print('IF')
                         query_update = '''
-                                        UPDATE fth.sf_items
+                                        UPDATE fth.fth_items
                                         SET 
                                         item_name = \'''' + item_name + '''\',
                                         item_info = \'''' + item_info + '''\',
@@ -6114,7 +6151,7 @@ class addItems_Prime(Resource):
                             item_photo, key)
                         # print(request.form)
                         query_update = """
-                                        UPDATE fth.sf_items
+                                        UPDATE fth.fth_items
                                         SET 
                                         item_name = \'""" + item_name + """\',
                                         item_info = \'""" + item_info + """\',
@@ -8452,7 +8489,7 @@ class notifications(Resource):
 
         if action == 'get':
             query = """
-                    SELECT * FROM sf.notifications;
+                    SELECT * FROM fth.notifications;
                     """
             items = execute(query, 'get', conn)
 
@@ -8469,7 +8506,7 @@ class notifications(Resource):
             uids = str(uids)
             uids = "'" + uids.replace("'", "\"") + "'"
             query_id = """
-                        CALL sf.new_notification_uid();
+                        CALL fth.new_notification_uid();
                         """
             items = execute(query_id, 'get', conn)
             if items['code'] != 280:
@@ -8479,7 +8516,7 @@ class notifications(Resource):
             id = items['result'][0]['new_id']
 
             query = """
-                    INSERT INTO sf.notifications 
+                    INSERT INTO fth.notifications 
                     (notification_uid, content, type, customer_uids) 
                     VALUES 
                     (\'""" + id + """\', \'""" + content + """\',\'""" + type + """\',""" + uids + """);
@@ -8501,7 +8538,7 @@ class notification_groups(Resource):
 
         if action == 'get':
             query = """
-                    SELECT * FROM sf.notification_groups;
+                    SELECT * FROM fth.notification_groups;
                     """
             items = execute(query, 'get', conn)
 
@@ -8518,7 +8555,7 @@ class notification_groups(Resource):
             uids = str(uids)
             uids = "'" + uids.replace("'", "\"") + "'"
             query_id = """
-                        CALL sf.new_notification_group_uid();
+                        CALL fth.new_notification_group_uid();
                         """
             items = execute(query_id, 'get', conn)
             if items['code'] != 280:
@@ -8528,7 +8565,7 @@ class notification_groups(Resource):
             id = items['result'][0]['new_id']
 
             query = """
-                    INSERT INTO sf.notification_groups 
+                    INSERT INTO fth.notification_groups 
                     (note_group_uid, name, type, customer_uids) 
                     VALUES 
                     (\'""" + id + """\', \'""" + name + """\',\'""" + type + """\',""" + uids + """);
@@ -14521,18 +14558,18 @@ api.add_resource(Ingredients_Need, '/api/v2/ingredients_need')
 
 #**********************************************************************************#
 #---FOOD BANKS ADMIN ---#
-api.add_resource(farmer_order_summary_page,
-                 '/api/v2/farmer_order_summary_page/<string:delivery_date>,<string:business_uid>')
+api.add_resource(food_bank_order_summary_page,
+                 '/api/v2/food_bank_order_summary_page/<string:delivery_date>,<string:business_uid>')
 api.add_resource(business_details_update,
                  '/api/v2/business_details_update/<string:action>')
 api.add_resource(add_business_to_zone, '/api/v2/add_business_to_zone')
 api.add_resource(business_image_upload, '/api/v2/business_image_upload')
 api.add_resource(new_business_image_upload,
                  '/api/v2/new_business_image_upload')
-api.add_resource(admin_farmer_items,
-                 '/api/v2/admin_farmer_items/<string:business_uid>')
-api.add_resource(update_farmer_item_admin,
-                 '/api/v2/update_farmer_item_admin/<string:action>')
+api.add_resource(admin_food_bank_items,
+                 '/api/v2/admin_food_bank_items/<string:business_uid>')
+api.add_resource(update_food_bank_item_admin,
+                 '/api/v2/update_food_bank_item_admin/<string:action>')
 api.add_resource(business_delivery_details,
                  '/api/v2/business_delivery_details/<string:id>')
 api.add_resource(Businesses, '/api/v2/businesses')
@@ -14540,8 +14577,8 @@ api.add_resource(Businesses, '/api/v2/businesses')
 api.add_resource(adminCustomerInfo, '/api/v2/adminCustomerInfo/<string:uid>')
 api.add_resource(history, '/api/v2/history/<string:uid>')
 #---ORDERS ADMIN ---#
-api.add_resource(farmer_packing_data,
-                 '/api/v2/farmer_packing_data/<string:uid>,<string:delivery_date>,<string:action>')
+api.add_resource(food_bank_packing_data,
+                 '/api/v2/food_bank_packing_data/<string:uid>,<string:delivery_date>,<string:action>')
 
 api.add_resource(replace_produce_admin,
                  '/api/v2/replace_produce_admin/<string:farm_name>,<string:produce_name>,<string:delivery_date>')
