@@ -5594,19 +5594,55 @@ class adminCustomerInfo(Resource):
 class history(Resource):
     # Fetches ALL DETAILS FOR A SPECIFIC USER
 
-    def get(self, email):
+    def get(self, uid):
         response = {}
         items = {}
-        print("user_email: ", email)
+        #print("user_uid: ", uid)
         try:
             conn = connect()
             query = """
-                    SELECT * 
+                    SELECT *
                     FROM fth.purchases as pur, fth.payments as pay
-                    WHERE pur.purchase_uid = pay.pay_purchase_uid AND pur.delivery_email = \'""" + email + """\'
+                    WHERE pur.purchase_uid = pay.pay_purchase_uid AND pur.pur_customer_uid = \'""" + uid + """\' AND pur.purchase_status = 'ACTIVE'
                     ORDER BY pur.purchase_date DESC; 
                     """
+            #print(query)
             items = execute(query, 'get', conn)
+
+            if items['code'] != 280:
+                items['message'] = 'Check sql query for history'
+                return items
+            #print('res')
+            '''
+            for i in range(len(items['result'])):
+
+
+                if items['result'][i]['pay_coupon_id'] and items['result'][i]['pay_coupon_id'] != 'undefined':
+
+
+                    #print('IN',items['result'][i]['pay_coupon_id'])
+
+                    query_cp = """
+                                SELECT coupon_uid, coupon_id, notes
+                                FROM fth.coupons
+                                WHERE coupon_uid = \'""" + items['result'][i]['pay_coupon_id'] + """\';
+                               """
+                    #print(query_cp)
+                    items_cp = execute(query_cp, 'get', conn)
+                    if items_cp['code'] != 280:
+                        items_cp['message'] = 'Check sql query for coupon'
+                        return items_cp
+
+                    #print(items_cp)
+                    items['result'][i]['coupon_uid'] = items_cp['result'][0]['coupon_uid']
+                    items['result'][i]['coupon_id'] = items_cp['result'][0]['coupon_id']
+                    items['result'][i]['notes'] = items_cp['result'][0]['notes']
+
+                else:
+                    items['result'][i]['coupon_uid'] = ''
+                    items['result'][i]['coupon_id'] = ''
+                    items['result'][i]['notes'] = ''
+            '''
 
             items['message'] = 'History Loaded successful'
             items['code'] = 200
@@ -5615,6 +5651,7 @@ class history(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
 #  -- ORDERS ADMIN RELATED ENDPOINTS    -----------------------------------------
 
 
