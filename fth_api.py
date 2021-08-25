@@ -5051,7 +5051,38 @@ class Businesses(Resource):
             conn = connect()
             query = """ 
                 # QUERY 1 RETURNS ALL BUSINESSES
-                SELECT * FROM fth.businesses
+                SELECT 
+                business_uid,
+                business_name,
+                business_type,
+                business_desc,
+                business_contact_first_name,
+                business_contact_last_name,
+                business_phone_num,                            
+                business_phone_num2,
+                business_email,
+                business_accepting_hours,
+                business_address,
+                business_unit,
+                business_city,
+                business_state,
+                business_zip,
+                can_cancel,
+                delivery,
+                reusable,
+                business_image,
+                platform_fee,
+                transaction_fee,
+                revenue_sharing,
+                profit_sharing,
+                business_status,
+                business_facebook_url,
+                business_instagram_url,
+                business_twitter_url,
+                business_website_url,
+                limit_per_person,
+                item_types
+                FROM fth.businesses
                 ORDER BY business_name;
                  """
             items = execute(query, 'get', conn)
@@ -5092,7 +5123,7 @@ class food_bank_order_summary_page(Resource):
             query ="""
                     SELECT  name,img,unit,business_name,business_price,price,(price-business_price) AS profit, SUM(qty) AS quantity, SUM(qty*business_price) AS total_revenue, SUM(qty*(price-business_price)) AS total_profit,
                         (SELECT CONCAT(GROUP_CONCAT(business_name ORDER BY business_name ASC SEPARATOR ','),',', COUNT(business_name))
-                            FROM fth.businesses, fth.supply WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS farms
+                            FROM fth.businesses, fth.supply WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS food_bank
                     FROM fth.purchases, fth.payments, fth.businesses,
                     JSON_TABLE(items, '$[*]' COLUMNS (
                                 img VARCHAR(255)  PATH '$.img',
@@ -5143,8 +5174,41 @@ class business_details_update(Resource):
             data = request.get_json(force=True)
 
             if action == 'Get':
-                query = "SELECT * FROM fth.businesses WHERE business_uid = \'" + \
-                    data['business_uid'] + "\';"
+                query = """ SELECT
+                            business_uid,
+                            business_name,
+                            business_type,
+                            business_desc,
+                            business_contact_first_name,
+                            business_contact_last_name,
+                            business_phone_num,                            
+                            business_phone_num2,
+                            business_email,
+                            business_hours,
+                            business_accepting_hours,
+                            business_delivery_hours,
+                            business_address,
+                            business_unit,
+                            business_city,
+                            business_state,
+                            business_zip,
+                            can_cancel,
+                            delivery,
+                            reusable,
+                            business_image,
+                            platform_fee,
+                            transaction_fee,
+                            revenue_sharing,
+                            profit_sharing,
+                            business_status,
+                            business_facebook_url,
+                            business_instagram_url,
+                            business_twitter_url,
+                            business_website_url,
+                            limit_per_person,
+                            item_types
+                        FROM fth.businesses WHERE business_uid = \'""" + \
+                    data['business_uid'] + """\';"""
                 item = execute(query, 'get', conn)
                 if item['code'] == 280:
                     if not item['result']:
@@ -5181,11 +5245,6 @@ class business_details_update(Resource):
                                business_zip = \'""" + data["business_zip"] + """\',
                                business_longitude = \'""" + data["business_longitude"] + """\',
                                business_latitude = \'""" + data["business_latitude"] + """\',
-                               business_EIN = \'""" + data["business_EIN"] + """\',
-                               business_WAUBI = \'""" + data["business_WAUBI"] + """\',
-                               business_license = \'""" + data["business_license"] + """\',
-                               business_USDOT = \'""" + data["business_USDOT"] + """\',
-                               bus_notification_approval = \'""" + data["bus_notification_approval"] + """\',
                                can_cancel = \'""" + data["can_cancel"] + """\',
                                delivery = \'""" + data["delivery"] + """\',
                                reusable = \'""" + data["reusable"] + """\',
@@ -5196,6 +5255,12 @@ class business_details_update(Resource):
                                revenue_sharing = \'""" + data["revenue_sharing"] + """\',
                                profit_sharing = \'""" + data["profit_sharing"] + """\',
                                business_status = \'""" + data["business_status"] + """\',
+                               business_facebook_url = \'""" + data["business_facebook_url"] + """\',
+                               business_instagram_url = \'""" + data["business_instagram_url"] + """\',
+                               business_twitter_url = \'""" + data["business_twitter_url"] + """\',
+                               business_website_url = \'""" + data["business_website_url"] + """\',
+                               limit_per_person = \'""" + data["limit_per_person"] + """\',
+                               item_types = \'""" + data["item_types"] + """\',
                                business_uid = \'""" + businessUID + """\' ;
                              """
                 print(query)
@@ -5250,11 +5315,6 @@ class business_details_update(Resource):
                                business_zip = \'""" + data["business_zip"] + """\',
                                business_longitude = \'""" + data["business_longitude"] + """\',
                                business_latitude = \'""" + data["business_latitude"] + """\',
-                               business_EIN = \'""" + data["business_EIN"] + """\',
-                               business_WAUBI = \'""" + data["business_WAUBI"] + """\',
-                               business_license = \'""" + data["business_license"] + """\',
-                               business_USDOT = \'""" + data["business_USDOT"] + """\',
-                               bus_notification_approval = \'""" + data["bus_notification_approval"] + """\',
                                can_cancel = \'""" + data["can_cancel"] + """\',
                                delivery = \'""" + data["delivery"] + """\',
                                reusable = \'""" + data["reusable"] + """\',
@@ -5264,7 +5324,13 @@ class business_details_update(Resource):
                                transaction_fee = \'""" + data["transaction_fee"] + """\',
                                revenue_sharing = \'""" + data["revenue_sharing"] + """\',
                                profit_sharing = \'""" + data["profit_sharing"] + """\',
-                               business_status = \'""" + data["business_status"] + """\'
+                               business_status = \'""" + data["business_status"] + """\',
+                               business_facebook_url = \'""" + data["business_facebook_url"] + """\',
+                               business_instagram_url = \'""" + data["business_instagram_url"] + """\',
+                               business_twitter_url = \'""" + data["business_twitter_url"] + """\',
+                               business_website_url = \'""" + data["business_website_url"] + """\',
+                               limit_per_person = \'""" + data["limit_per_person"] + """\',
+                               item_types = \'""" + data["item_types"] + """\'
                                WHERE business_uid = \'""" + data["business_uid"] + """\' ;
                              """
                 print("sfter query")
@@ -5508,21 +5574,19 @@ class update_food_bank_item_admin(Resource):
 
 class adminCustomerInfo(Resource):
     def get(self, uid):
-        print("IN admincustomerinfo")
         try:
             conn = connect()
             if uid == 'all':
-                print("ALL")
                 query = """ 
-                        SELECT customer_uid, customer_created_at, customer_first_name, customer_last_name, customer_phone_num, customer_email, customer_address, customer_unit, customer_city, customer_state, customer_zip, customer_lat, customer_long, favorites, purchase_uid, purchase_date, purchase_id, purchase_status, pur_customer_uid, pur_business_uid,  delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, delivery_latitude, delivery_longitude, payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, subtotal, amount_discount, service_fee, delivery_fee, driver_tip, taxes, amount_due, amount_paid
+                        SELECT customer_uid, customer_created_at, customer_first_name, customer_last_name, user_social_media, customer_phone_num, customer_email, customer_address, customer_unit, customer_city, customer_state, customer_zip, customer_lat, customer_long, favorite_produce, purchase_uid, purchase_date, purchase_id, purchase_status, pur_customer_uid, pur_business_uid,  delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, delivery_latitude, delivery_longitude, payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, subtotal, amount_discount, service_fee, delivery_fee, driver_tip, taxes, amount_due, amount_paid
                         ,COUNT(pur.purchase_uid) AS total_orders,max(pur.purchase_date) AS last_order_date, SUM(amount_paid) as total_revenue
                         FROM fth.customers cus,fth.purchases pur ,fth.payments pay
                         WHERE pur.purchase_uid=pay.pay_purchase_id and pur.purchase_status='ACTIVE' and cus.customer_uid=pur.pur_customer_uid 
                         GROUP BY cus.customer_uid ;
                         """
             else:
-                query = """ 
-                        SELECT customer_uid, customer_created_at, customer_first_name, customer_last_name, customer_phone_num, customer_email, customer_address, customer_unit, customer_city, customer_state, customer_zip, customer_lat, customer_long, favorites, purchase_uid, purchase_date, purchase_id, purchase_status, pur_customer_uid, pur_business_uid,  delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, delivery_latitude, delivery_longitude, payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, subtotal, amount_discount, service_fee, delivery_fee, driver_tip, taxes, amount_due, amount_paid
+                 query = """ 
+                        SELECT customer_uid, customer_created_at, customer_first_name, customer_last_name, user_social_media, customer_phone_num, customer_email, customer_address, customer_unit, customer_city, customer_state, customer_zip, customer_lat, customer_long, favorite_produce, purchase_uid, purchase_date, purchase_id, purchase_status, pur_customer_uid, pur_business_uid,  delivery_address, delivery_unit, delivery_city, delivery_state, delivery_zip, delivery_latitude, delivery_longitude, payment_uid, payment_id, pay_purchase_uid, pay_purchase_id, payment_time_stamp, subtotal, amount_discount, service_fee, delivery_fee, driver_tip, taxes, amount_due, amount_paid
                         ,COUNT(pur.purchase_uid) AS total_orders,max(pur.purchase_date) AS last_order_date, SUM(amount_paid) as total_revenue
                         FROM fth.customers cus,fth.purchases pur ,fth.payments pay
                         WHERE pur.purchase_uid=pay.pay_purchase_id and pur.purchase_status='ACTIVE' and cus.customer_uid=pur.pur_customer_uid and cus.customer_uid = \'""" + uid + """\'
@@ -5530,16 +5594,16 @@ class adminCustomerInfo(Resource):
                         """
 
             items = execute(query, 'get', conn)
-            print("1")
+
             items['message'] = 'Info Gathered'
             
             query = """
                         SELECT * from fth.zones;
                     """
             items_zone = execute(query, 'get', conn)
-            print("2")
             if items_zone['code'] != 280:
                 items_zone['message'] = 'check sql query'
+                
 
             final_res = []
             # getting zones for customers
@@ -5548,7 +5612,7 @@ class adminCustomerInfo(Resource):
                 longt = vals_itm['customer_long']
                 lat = vals_itm['customer_lat']
                 zones = ['Random', 'Random']
-
+                
                 for vals in items_zone['result']:
                     LT_long = vals['LT_long']
                     LT_lat = vals['LT_lat']
@@ -5559,30 +5623,27 @@ class adminCustomerInfo(Resource):
                     RB_long = vals['RB_long']
                     RB_lat = vals['RB_lat']
 
-                    point = Point(float(longt), float(lat))
-                    polygon = Polygon(
-                        [(LB_long, LB_lat), (LT_long, LT_lat), (RT_long, RT_lat), (RB_long, RB_lat)])
+                    point = Point(float(longt),float(lat))
+                    polygon = Polygon([(LB_long, LB_lat), (LT_long, LT_lat), (RT_long, RT_lat), (RB_long, RB_lat)])
                     res = polygon.contains(point)
-
+                    
                     if res:
                         zones.append(vals['zone'])
-
+                
                 query = """
                         SELECT DISTINCT zone_name
                         FROM fth.zones     
                         WHERE zone IN """ + str(tuple(zones)) + """;
                         """
                 items_name = execute(query, 'get', conn)
-                print("4", vals_itm)
-                zone_name = items_name['result'][0]['zone_name']
-                
-                vals_itm['zone'] = zone_name
-                print("6",vals_itm['zone'])
-                final_res.append(vals_itm)
-                print("7",final_res)
 
+                zone_name = items_name['result'][0]['zone_name']
+
+                vals_itm['zone'] = zone_name
+                final_res.append(vals_itm)
+            
             items['result'] = final_res
-            print(items['result'])
+
             return items
 
         except:
@@ -5848,7 +5909,7 @@ class order_summary_page(Resource):
             query = """
                     SELECT  name,img,unit,business_name,business_price,price,(price-business_price) AS profit, SUM(qty) AS quantity, SUM(qty*price) AS total_revenue, SUM(qty*(price-business_price)) AS total_profit,
                         (SELECT CONCAT(GROUP_CONCAT(business_name ORDER BY business_name ASC SEPARATOR ','),',', COUNT(business_name))
-                            FROM fth.businesses, fth.supply WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS farms
+                            FROM fth.businesses, fth.supply WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS food_bank
                     FROM fth.purchases, fth.payments, fth.businesses,
                     JSON_TABLE(items, '$[*]' COLUMNS (
                                 img VARCHAR(255)  PATH '$.img',
@@ -5936,11 +5997,11 @@ class admin_items(Resource):
                                                                              "item_photo": vals['item_photo'],
                                                                              "taxable": vals['taxable'],
                                                                              "item_display": vals['item_display'],
-                                                                             "farms": [[vals['itm_business_uid'], vals['sup_item_uid'], vals['business_price'], vals['item_status'], vals['business_name']]]
+                                                                             "food_bank": [[vals['itm_business_uid'], vals['sup_item_uid'], vals['business_price'], vals['item_status'], vals['business_name']]]
 
                                                                              }
                 else:
-                    produce_dict[vals['item_name']+","+vals['item_unit']]["farms"].append(
+                    produce_dict[vals['item_name']+","+vals['item_unit']]["food_bank"].append(
                         [vals['itm_business_uid'], vals['sup_item_uid'], vals['business_price'], vals['item_status'], vals['business_name']])
             final_res = [value for key, value in produce_dict.items()]
             items['result'] = final_res
@@ -6029,8 +6090,8 @@ class addItems_Prime(Resource):
                 print('Hello', new_item)
                 # Already an item then we just need to update supply table
                 if new_item == 'FALSE':
-                    #print('IN IF')
-                    # print(request.form)
+                    print('IN IF')
+                    print(request.form)
                     bus_uid = request.form.get('bus_uid')
                     itm_uid = request.form.get('itm_uid')
                     bus_price = request.form.get('bus_price')
@@ -6039,7 +6100,7 @@ class addItems_Prime(Resource):
                     query = ["CALL fth.new_supply_uid();"]
                     NewIDresponse = execute(query[0], 'get', conn)
                     supply_uid = NewIDresponse['result'][0]['new_id']
-                    # print('BEFORE',supply_uid,itm_uid)
+                    print('BEFORE',supply_uid,itm_uid)
                     query_insert = """
                                    INSERT INTO fth.supply (supply_uid, itm_business_uid, sup_item_uid, business_price, item_status) 
                                    VALUES 
@@ -6059,60 +6120,52 @@ class addItems_Prime(Resource):
                 # add new item and supply
                 else:
 
-                    item_name = request.form.get('item_name') if request.form.get(
-                        'item_name') is not None else 'NULL'
-                    item_info = request.form.get('item_info') if request.form.get(
-                        'item_info') is not None else 'NULL'
-                    item_type = request.form.get('item_type') if request.form.get(
-                        'item_type') is not None else 'NULL'
-                    item_desc = request.form.get('item_desc') if request.form.get(
-                        'item_desc') is not None else 'NULL'
-                    item_unit = request.form.get('item_unit') if request.form.get(
-                        'item_unit') is not None else 'NULL'
-                    item_price = request.form.get('item_price') if request.form.get(
-                        'item_price') is not None else 'NULL'
-                    item_sizes = request.form.get('item_sizes') if request.form.get(
-                        'item_sizes') is not None else 'NULL'
-                    favorite = request.form.get('favorite') if request.form.get(
-                        'favorite') is not None else 'NULL'
-                    item_photo = request.form.get('item_photo') if request.form.get(
-                        'item_photo') is not None else 'NULL'
-                    exp_date = request.form.get('exp_date') if request.form.get(
-                        'exp_date') is not None else 'NULL'
-                    taxable = request.form.get('taxable') if request.form.get(
-                        'taxable') is not None else 'NULL'
-                    item_display = request.form.get('item_display') if request.form.get(
-                        'item_display') is not None else 'NULL'
+                    item_name = request.form.get('item_name') 
+                    item_info = request.form.get('item_info') 
+                    item_type = request.form.get('item_type') 
+                    item_desc = request.form.get('item_desc') 
+                    item_unit = request.form.get('item_unit') 
+                    item_price = request.form.get('item_price') 
+                    item_sizes = request.form.get('item_sizes') 
+                    favorite = request.form.get('favorite') 
+                    item_photo = request.form.get('item_photo') 
+                    exp_date = request.form.get('exp_date') 
+                    taxable = request.form.get('taxable') 
+                    item_display = request.form.get('item_display') 
+
                     print('data done')
+                    print(request.form)
                     query = ["CALL fth.new_fth_items_uid;"]
                     NewIDresponse = execute(query[0], 'get', conn)
                     NewID = NewIDresponse['result'][0]['new_id']
-                    TimeStamp = datetime.strftime(
-                        datetime.now(utc), "%Y-%m-%d %H:%M:%S")
+                    print(NewID)
+                    TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+                    print(TimeStamp)
                     item_photo_url = item_photo
 
                     print('before query', TimeStamp)
-                    query_insert = '''
+                    query_insert = """
                                 INSERT INTO fth.fth_items
                                 SET 
-                                item_uid = \'''' + NewID + '''\',
-                                created_at = \'''' + TimeStamp + '''\',
-                                item_name = \'''' + item_name + '''\',
-                                item_info = \'''' + item_info + '''\',
-                                item_type = \'''' + item_type + '''\',
-                                item_desc = \'''' + item_desc + '''\',
-                                item_unit = \'''' + item_unit + '''\',
-                                item_price = \'''' + str(item_price) + '''\',
-                                item_sizes = \'''' + item_sizes + '''\',
-                                favorite = \'''' + favorite + '''\',
-                                item_photo = \'''' + item_photo_url + '''\',
-                                exp_date = \'''' + exp_date + '''\',
-                                item_display = \'''' + item_display + '''\',
-                                taxable = \'''' + taxable + '''\';
-                                '''
-                    print(query)
+                                item_uid = \'""" + NewID + """\',
+                                created_at = \'""" + TimeStamp + """\',
+                                item_name = \'""" + item_name + """\',
+                                item_info = \'""" + item_info + """\',
+                                item_type = \'""" + item_type + """\',
+                                item_desc = \'""" + item_desc + """\',
+                                item_unit = \'""" + item_unit + """\',
+                                item_price = \'""" + str(item_price) + """\',
+                                item_sizes = \'""" + item_sizes + """\',
+                                favorite = \'""" + favorite + """\',
+                                item_photo = \'""" + item_photo + """\',
+                                exp_date = \'""" + exp_date + """\',
+                                taxable = \'""" + taxable + """\',
+                                item_display = \'""" + item_display + """\';
+                                """
+                    print('before execute')
                     items = execute(query_insert, 'post', conn)
+                    print('after execute')
                     if items['code'] != 281:
                         items['message'] = 'check sql query'
 
@@ -9777,100 +9830,6 @@ class delivery_weekdays(Resource):
 
 
 #  -- ADMIN BUSINESS RELATED ENDPOINTS    -----------------------------------------
-
-# class business_details_update(Resource):
-#     def post(self, action):
-#         try:
-#             conn = connect()
-#             data = request.get_json(force=True)
-
-#             if action == 'Get':
-#                 query = "SELECT * FROM fth.businesses WHERE business_uid = \'" + \
-#                     data['business_uid'] + "\';"
-#                 item = execute(query, 'get', conn)
-#                 if item['code'] == 280:
-#                     if not item['result']:
-#                         item['message'] = 'No such business uid exists'
-#                     else:
-#                         item['message'] = 'Business table loaded successfully'
-#                     item['code'] = 200
-#                 else:
-#                     item['message'] = 'check sql query'
-#                     item['code'] = 490
-#                 return item
-#             else:
-#                 print("IN ELSE")
-#                 print(data)
-#                 print('IN')
-
-#                 business_association = str(data['business_association'])
-#                 business_association = "'" + \
-#                     business_association.replace("'", "\"") + "'"
-#                 business_hours = str(data['business_hours'])
-#                 business_hours = "'" + business_hours.replace("'", "\"") + "'"
-#                 business_accepting_hours = str(
-#                     data['business_accepting_hours'])
-#                 business_accepting_hours = "'" + \
-#                     business_accepting_hours.replace("'", "\"") + "'"
-#                 business_delivery_hours = str(data['business_delivery_hours'])
-#                 business_delivery_hours = "'" + \
-#                     business_delivery_hours.replace("'", "\"") + "'"
-#                 print("0")
-#                 query = """
-#                                UPDATE fth.businesses
-#                                SET
-#                                business_created_at = \'""" + data["business_created_at"] + """\',
-#                                business_name = \'""" + data["business_name"] + """\',
-#                                business_type = \'""" + data["business_type"] + """\',
-#                                business_desc = \'""" + data["business_desc"] + """\',
-#                                business_association = """ + business_association + """,
-#                                business_contact_first_name = \'""" + data["business_contact_first_name"] + """\',
-#                                business_contact_last_name = \'""" + data["business_contact_last_name"] + """\',
-#                                business_phone_num = \'""" + data["business_phone_num"] + """\',
-#                                business_phone_num2 = \'""" + data["business_phone_num2"] + """\',
-#                                business_email = \'""" + data["business_email"] + """\',
-#                                business_hours = """ + business_hours + """,
-#                                business_accepting_hours = """ + business_accepting_hours + """,
-#                                business_delivery_hours = """ + business_delivery_hours + """,
-#                                business_address = \'""" + data["business_address"] + """\',
-#                                business_unit = \'""" + data["business_unit"] + """\',
-#                                business_city = \'""" + data["business_city"] + """\',
-#                                business_state = \'""" + data["business_state"] + """\',
-#                                business_zip = \'""" + data["business_zip"] + """\',
-#                                business_longitude = \'""" + data["business_longitude"] + """\',
-#                                business_latitude = \'""" + data["business_latitude"] + """\',
-#                                business_EIN = \'""" + data["business_EIN"] + """\',
-#                                business_WAUBI = \'""" + data["business_WAUBI"] + """\',
-#                                business_license = \'""" + data["business_license"] + """\',
-#                                business_USDOT = \'""" + data["business_USDOT"] + """\',
-#                                bus_notification_approval = \'""" + data["bus_notification_approval"] + """\',
-#                                -- bus_notification_device_id = \'""" + data["bus_notification_device_id"] + """\',
-#                                can_cancel = \'""" + data["can_cancel"] + """\',
-#                                delivery = \'""" + data["delivery"] + """\',
-#                                reusable = \'""" + data["reusable"] + """\',
-#                                business_image = \'""" + data["business_image"] + """\',
-#                                business_password = \'""" + data["business_password"] + """\'
-#                                WHERE business_uid = \'""" + data["business_uid"] + """\' ;
-#                              """
-#                 print("1")
-#                 print(query)
-#                 item = execute(query, 'post', conn)
-#                 print("2")
-#                 print(item)
-#                 if item['code'] == 281:
-#                     item['code'] = 200
-#                     item['message'] = 'Business info updated'
-#                 else:
-#                     item['message'] = 'check sql query'
-#                     item['code'] = 490
-#                 return item
-
-#         except:
-#             print("Error happened while outputting from business table")
-#             raise BadRequest('Request failed, please try again later.')
-#         finally:
-#             disconnect(conn)
-#             print('process completed')
 
 
 # class business_details_update_brandon(Resource):
