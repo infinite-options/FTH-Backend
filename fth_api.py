@@ -2047,6 +2047,81 @@ class AppleEmail(Resource):
 
 
 #  -- MEAL/MENU RELATED ENDPOINTS    -----------------------------------------
+class getItems_Prime(Resource):
+    def post(self):
+        response = {}
+        items = {}
+
+        try:
+            conn = connect()
+
+            data = request.get_json(force=True)
+            ids = data['ids']
+            type = data['type']
+            type.append('Random')
+            type.append('Random2')
+            ids.append('Random')
+            ids.append('Random2')
+
+            #old query
+            query = """
+                    SELECT * 
+                    FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                    WHERE item_type IN """ + str(tuple(type)) + """ AND itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
+                    ORDER BY item_name;
+                    """
+            
+            '''
+            #updated query
+            query = """
+                    SELECT  *
+                    FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                    WHERE item_display = 'TRUE' AND item_status = 'Active'
+                    GROUP BY item_name
+                    ORDER BY item_name;
+                    """
+            '''
+            
+            #print(query)
+            items = execute(query, 'get', conn)
+
+            if items['code'] != 280:
+                items['message'] = 'check sql query'
+                return items
+
+            items['message'] = 'Items sent successfully'
+            items['code'] = 200
+            
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class getItemsByUid(Resource):
+    def get(self, uid):
+        response = {}
+        items = {}
+        #print("user_uid: ", uid)
+        try:
+            conn = connect()
+            query = """
+                    SELECT *
+                    FROM fth.fth_items
+                    WHERE item_uid = \'""" + uid + """\';
+                    """
+            items = execute(query, 'get', conn)
+
+            if items['code'] != 280:
+                items['message'] = 'Check sql query for history'
+                return items
+            items['result'] = items['result'][0]
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 class Meals_Selected(Resource):  # (meals_selected_endpoint)
     def get(self):
@@ -14621,7 +14696,11 @@ api.add_resource(Send_Notification, '/api/v2/Send_Notification/<string:role>')
 api.add_resource(update_guid_notification,
                  '/api/v2/update_guid_notification/<string:role>,<string:action>')
 #**********************************************************************************#
+#---customer related endpoints ---#
 
+#---Items page ---#
+api.add_resource(getItems_Prime, '/api/v2/getItems')
+api.add_resource(getItemsByUid, '/api/v2/getItemsByUid/<string:uid>')
 
 api.add_resource(AllMenus, '/api/v2/allMenus')
 
