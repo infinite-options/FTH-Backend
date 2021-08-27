@@ -2047,7 +2047,8 @@ class AppleEmail(Resource):
 
 
 #  -- MEAL/MENU RELATED ENDPOINTS    -----------------------------------------
-class getItems_Prime(Resource):
+#  -- CUSTOMER RELATED ENDPOINTS    -----------------------------------------
+class getItems(Resource):
     def post(self):
         response = {}
         items = {}
@@ -2057,32 +2058,51 @@ class getItems_Prime(Resource):
 
             data = request.get_json(force=True)
             ids = data['ids']
-            type = data['type']
-            type.append('Random')
-            type.append('Random2')
-            ids.append('Random')
-            ids.append('Random2')
+            types = data['types']
+           
+            
+            print(ids)
+            print(types)
 
-            #old query
-            query = """
-                    SELECT * 
-                    FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
-                    WHERE item_type IN """ + str(tuple(type)) + """ AND itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
-                    ORDER BY item_name;
-                    """
-            
-            '''
-            #updated query
-            query = """
-                    SELECT  *
-                    FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
-                    WHERE item_display = 'TRUE' AND item_status = 'Active'
-                    GROUP BY item_name
-                    ORDER BY item_name;
-                    """
-            '''
-            
-            #print(query)
+            if(len(types) == 0 and len(ids) == 0):
+                print("in if")
+                query = """
+                        SELECT * 
+                        FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                        WHERE item_status = 'Active'
+                        ORDER BY item_name;
+                        """
+            elif(len(types) == 0 and len(ids) !=0):
+                print("in elif 1")
+                ids.append('')
+                query = """
+                        SELECT * 
+                        FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                        WHERE itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
+                        GROUP BY item_name
+                        ORDER BY item_name;
+                        """
+            elif(len(ids) == 0 and len(types) !=0):
+                print("in elif 2")
+                types.append('')
+                query = """
+                        SELECT * 
+                        FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                        WHERE item_type IN """ + str(tuple(types)) + """ AND item_status = 'Active'
+                        GROUP BY item_name
+                        ORDER BY item_name;
+                        """
+            else:
+                print("in else")
+                query = """
+                        SELECT * 
+                        FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                        WHERE item_type IN """ + str(tuple(types)) + """ AND itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
+                        GROUP BY item_name
+                        ORDER BY item_name;
+                        """
+            print("after query")           
+            print(query)
             items = execute(query, 'get', conn)
 
             if items['code'] != 280:
@@ -2099,30 +2119,181 @@ class getItems_Prime(Resource):
         finally:
             disconnect(conn)
 
-class getItemsByUid(Resource):
-    def get(self, uid):
-        response = {}
-        items = {}
-        #print("user_uid: ", uid)
+class ProduceByLocation_Prime(Resource):
+    def get(self, long, lat):
+        
         try:
             conn = connect()
+            #print('IN')
+            zones = ['Random', 'Random']
             query = """
-                    SELECT *
-                    FROM fth.fth_items
-                    WHERE item_uid = \'""" + uid + """\';
+                    SELECT * from fth.zones;
+                  """
+            items = execute(query, 'get', conn)
+            if items['code'] != 280:
+                items['message'] = 'check sql query'
+                return items
+
+            for vals in items['result']:
+                LT_long = vals['LT_long']
+                LT_lat = vals['LT_lat']
+                LB_long = vals['LB_long']
+                LB_lat = vals['LB_lat']
+                RT_long = vals['RT_long']
+                RT_lat = vals['RT_lat']
+                RB_long = vals['RB_long']
+                RB_lat = vals['RB_lat']
+
+                point = Point(float(long),float(lat))
+                polygon = Polygon([(LB_long, LB_lat), (LT_long, LT_lat), (RT_long, RT_lat), (RB_long, RB_lat)])
+                res = polygon.contains(point)
+                
+                if res:
+                    zones.append(vals['zone'])
+            
+            query = """
+                    SELECT      
+                    rjzjt.zone_uid,
+                    rjzjt.zone,
+                    rjzjt.zone_name,
+                    rjzjt.z_id,
+                    rjzjt.z_biz_id,
+                    b.business_name,
+                    rjzjt.z_delivery_day,
+                    rjzjt.z_delivery_time,
+                    rjzjt.z_accepting_day,
+                    rjzjt.z_accepting_time,
+                    rjzjt.LB_long,rjzjt.LB_lat,rjzjt.LT_long,rjzjt.LT_lat,rjzjt.RT_long,rjzjt.RT_lat,rjzjt.RB_long,rjzjt.RB_lat,
+                    b.business_type,
+                    b.business_image,
+                    b.business_accepting_hours
+                    FROM fth.businesses b
+                    RIGHT JOIN
+                    (SELECT *
+                         FROM fth.zones AS z,
+                         json_table(z_businesses, '$[*]'
+                             COLUMNS (
+                                    z_id FOR ORDINALITY,
+                                    z_biz_id VARCHAR(255) PATH '$')
+                                                 ) as zjt) as rjzjt
+                    ON b.business_uid = rjzjt.z_biz_id
+                    WHERE zone IN """ + str(tuple(zones)) + """ AND zone_status = 'ACTIVE';
                     """
             items = execute(query, 'get', conn)
 
             if items['code'] != 280:
-                items['message'] = 'Check sql query for history'
+                items['message'] = 'check sql query'
                 return items
-            items['result'] = items['result'][0]
+
+            business_details = items['result']
+            business_delivery_dict = {}
+            
+            ids = set()
+            for vals in business_details:
+                ids.add(vals['z_biz_id'])
+                if vals['z_biz_id'] in business_delivery_dict:
+                    business_delivery_dict[vals['z_biz_id']].append(vals['z_delivery_day'])
+                else:
+                    business_delivery_dict[vals['z_biz_id']] = [vals['z_delivery_day']]
+            
+            for key, vals in business_delivery_dict.items():
+                business_delivery_dict[key] = sorted(vals)
+            
+            ## get produce
+
+            ids = list(ids)
+            ids.append('Random')
+            ids.append('Random2')
+
+            query = """
+                    SELECT * 
+                    FROM (SELECT * FROM fth.fth_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) as tmp
+                    WHERE itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
+                    ORDER BY item_name;
+                    """
+            items = execute(query, 'get', conn)
+
+            if items['code'] != 280:
+                items['message'] = 'check sql query'
+                return items
+
+            items['message'] = 'Items sent successfully'
+            items['code'] = 200
+            items['business_details'] = business_details
+            
+            final_produce = items['result']
+            """
+            # new logic to have delivery days in items and have redundant data -- uncomment this once requirement is there
+            final_produce = []
+            for vals in items['result']:
+                if vals['itm_business_uid'] in business_delivery_dict:
+                    if len(business_delivery_dict[vals['itm_business_uid']]) > 1:
+                        temp_1 = copy.deepcopy(vals)
+                        temp_2 = copy.deepcopy(vals)
+                        temp_1['delivery_day'] = business_delivery_dict[vals['itm_business_uid']][0]
+                        final_produce.append(temp_1)
+                        temp_2['delivery_day'] = business_delivery_dict[vals['itm_business_uid']][1]
+                        final_produce.append(temp_2)
+                        
+                    else:
+                        vals['delivery_day'] = business_delivery_dict[vals['itm_business_uid']][0]
+                        final_produce.append(vals)
+            """
+            # add days to produce
+
+            # get max profit
+            # add vals["delivery_day"] to the enumerate logic
+            dict_items = {}
+            rm_idx = []
+            result = final_produce
+            for i, vals in enumerate(result):
+                if vals['item_name'] + vals["item_type"] + vals["item_unit"] in dict_items.keys():
+                    if dict_items[vals['item_name'] + vals["item_type"] + vals["item_unit"]][0] < vals["item_price"] - vals["business_price"]:
+                        rm_idx.append(dict_items[vals['item_name'] + vals["item_type"] + vals["item_unit"]][1])
+                        dict_items[vals['item_name'] + vals["item_type"] + vals["item_unit"]] = [vals["item_price"] - vals["business_price"], i]
+                    else:
+                        rm_idx.append(i)
+                else:
+                    dict_items[vals['item_name'] + vals["item_type"] + vals["item_unit"]] = [vals["item_price"] - vals["business_price"], i]
+
+            result = [i for j, i in enumerate(result) if j not in rm_idx]
+            items['result'] = result
+            item_type = set()
+            
+            for vals in items['result']:
+                item_type.add(vals['item_type'])
+            
+            res = []
+            if 'vegetable' in item_type and 'fruit' in item_type:
+                #print('1')
+                item_type.remove('vegetable')
+                item_type.remove('fruit')
+                res = ['vegetable','fruit']
+
+                res.extend(list(item_type))
+            elif 'vegetable' in item_type:
+                #print('2')
+                item_type.remove('vegetable')
+                res = ['vegetable']
+                res.extend(list(item_type))
+            elif 'fruit' in item_type:
+                #print('3')
+                item_type.remove('fruit')
+                res = ['fruit']
+                res.extend(list(item_type))
+            else:
+                #print('4')
+                res = list(item_type)
+
+            items['types'] = res
             return items
+            
+
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
-
+            
 class Meals_Selected(Resource):  # (meals_selected_endpoint)
     def get(self):
         try:
@@ -5626,7 +5797,14 @@ class update_food_bank_item_admin(Resource):
                     fth.supply 
                     SET 
                     business_price = \'""" + str(data['business_price']) + """\', 
-                    item_status = \'""" + data['item_status'] + """\'
+                    item_status = \'""" + data['item_status'] + """\',
+                    item_sizes = \'""" + str(data['item_sizes']) + """\',
+                    item_weigh_unit = \'""" + data['item_weigh_unit'] + """\',
+                    item_qty = \'""" + str(data['item_qty']) + """\',
+                    item_unit = \'""" + data['item_unit'] + """\',
+                    receive_date = \'""" + data['receive_date'] + """\',
+                    available_date = \'""" + data['available_date'] + """\',
+                    exp_date = \'""" + data['exp_date'] + """\'
                     WHERE (supply_uid = \'""" + data['supply_uid'] + """\');
                     """
             else:
@@ -5806,7 +5984,7 @@ class food_bank_packing_data(Resource):
             if items['code'] != 280:
                 items['message'] = "Business UID doesn't exsist"
                 return items
-            # print(items)
+            print(items)
             business_name = items['result'][0]['business_name']
             query = """
                     SELECT obf.*, pay.start_delivery_date, pay.payment_uid, itm.business_price, SUM(obf.qty) AS total_qty, SUM(itm.business_price) AS total_price, itm.item_unit, itm.item_photo
@@ -5814,7 +5992,7 @@ class food_bank_packing_data(Resource):
                     WHERE obf.purchase_uid = pay.pay_purchase_uid AND obf.item_uid = itm.item_uid AND obf.itm_business_uid = itm.itm_business_uid AND pay.start_delivery_date LIKE \'""" + delivery_date + '%' + """\' AND obf.itm_business_uid = \'""" + uid + """\'
                     GROUP BY  obf.delivery_address, obf.delivery_unit, obf.delivery_city, obf.delivery_state, obf.delivery_zip, obf.item_uid;
                     """
-            # print(query)
+            print(query)
             items = execute(query, 'get', conn)
             if items['code'] != 280:
                 items['message'] = 'Check sql query'
@@ -5961,7 +6139,7 @@ class replace_produce_admin(Resource):
 
 
 class order_summary_page(Resource):
-    def get(self, delivery_date):
+    def get(self,delivery_date):
         try:
             conn = connect()
             year, month, day = (int(x) for x in delivery_date.split('-'))
@@ -5975,25 +6153,26 @@ class order_summary_page(Resource):
             business_items = execute(business_serving, 'get', conn)
             if business_items['code'] != 280:
                 business_items['message'] = 'check sql query'
-
+                
             all_bus = set()
             for bus_vals in business_items['result']:
                 bus_vals = json.loads(bus_vals['z_businesses'])
                 all_bus.update(bus_vals)
             all_bus = str(tuple(list(all_bus)))
+            print(all_bus)
 
-            query = """
-                    SELECT  name,img,unit,business_name,business_price,price,current_inventory,(price-business_price) AS profit, SUM(qty) AS quantity, SUM(qty*price) AS total_revenue, SUM(qty*(price-business_price)) AS total_profit,
+            query ="""
+                    SELECT  name,img,unit,business_name,business_price,price,fth.fth_items.item_type,(price-business_price) AS profit, SUM(qty) AS quantity, SUM(qty*price) AS total_revenue, SUM(qty*(price-business_price)) AS total_profit,
                         (SELECT CONCAT(GROUP_CONCAT(business_name ORDER BY business_name ASC SEPARATOR ','),',', COUNT(business_name))
-                            FROM fth.businesses, fth.supply WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS food_bank
-                    FROM fth.purchases, fth.payments, fth.businesses,
+                            FROM fth.businesses, fth.supply WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS food_banks
+                    FROM fth.purchases, fth.payments, fth.businesses, fth.fth_items,
                     JSON_TABLE(items, '$[*]' COLUMNS (
                                 img VARCHAR(255)  PATH '$.img',
                                 qty VARCHAR(255)  PATH '$.qty',
                                 name VARCHAR(255)  PATH '$.name',
                                 price VARCHAR(255)  PATH '$.price',
-                                current_inventory VARCHAR(45)  PATH '$.current_inventory',
                                 item_uid VARCHAR(255)  PATH '$.item_uid',
+                                item_type VARCHAR(255)  PATH '$.item_type',
                                 itm_business_uid VARCHAR(255) PATH '$.itm_business_uid',
                                 business_price VARCHAR(255)  PATH '$.business_price',
                                 unit VARCHAR(255)  PATH '$.unit')
@@ -6005,10 +6184,10 @@ class order_summary_page(Resource):
                     GROUP BY name
                     Order BY name;
                     """
-            items = execute(query, 'get', conn)
+            items = execute(query,'get',conn)
             if items['code'] != 280:
                 items['message'] = 'check sql query'
-
+            
             return items
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -6059,23 +6238,27 @@ class admin_items(Resource):
             if items['code'] != 280:
                 items['message'] = 'check sql query'
                 return items
-            number_of_food_banks= 0
+            
             produce_dict = {}
             for vals in items['result']:
                 
                 if (vals['item_name']+","+vals['item_unit']) not in produce_dict:
-                    print(number_of_food_banks)
+                    print(vals['item_name'])
                     produce_dict[vals['item_name']+","+vals['item_unit']] = {"item_uid": vals['item_uid'],
                                                                              "item_name": vals['item_name'],
                                                                              "item_info": vals['item_info'],
                                                                              "item_type": vals['item_type'],
                                                                              "item_desc": vals['item_desc'],
+                                                                             "brand_name":vals['brand_name'],
+                                                                             "item_qty": vals['item_qty'],
                                                                              "item_unit": vals['item_unit'],
-                                                                             "item_price": vals['item_price'],
-                                                                             "item_sizes": vals['item_sizes'],
+                                                                             "item_price": vals['business_price'],
+                                                                             "item_size": vals['item_sizes'],
+                                                                             "item_weigh_unit": vals['item_weigh_unit'],
                                                                              "item_photo": vals['item_photo'],
-                                                                             "item_date": vals['exp_date'],
-                                                                             "taxable": vals['taxable'],
+                                                                             "exp_date": vals['exp_date'],
+                                                                             "receive_date": vals['receive_date'],
+                                                                             "available_date": vals['available_date'],
                                                                              "item_display": vals['item_display'],
                                                                              "current_inventory": vals['current_inventory'],
                                                                              "food_bank": [[vals['itm_business_uid'], vals['sup_item_uid'], vals['business_price'], vals['item_status'], vals['business_name']]],
@@ -6084,14 +6267,15 @@ class admin_items(Resource):
                     
                     #print(len(produce_dict[vals['item_name']+","+vals['item_unit']]["food_bank"]))
                 else:
+                    
                     produce_dict[vals['item_name']+","+vals['item_unit']]["food_bank"].append(
                         [vals['itm_business_uid'], vals['sup_item_uid'], vals['business_price'], vals['item_status'], vals['business_name']])
-                
                     
                     
+            print("OUT")    
             final_res = [value for key, value in produce_dict.items()]
             items['result'] = final_res
-   
+            print(final_res)
             return items
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -6143,12 +6327,7 @@ class update_item_admin(Resource):
                     item_name = \'""" + data['item_name'] + """\', 
                     item_type = \'""" + data['item_type'] + """\',
                     item_desc = \'""" + data['item_desc'] + """\', 
-                    item_unit = \'""" + data['item_unit'] + """\', 
-                    item_price = \'""" + str(data['item_price']) + """\',
-                    item_sizes = \'""" + data['item_sizes'] + """\',
                     item_photo = \'""" + data['item_photo'] + """\',
-                    exp_date = \'""" + data['exp_date'] + """\',
-                    taxable = \'""" + data['taxable'] + """\',
                     item_display = \'""" + data['item_display'] + """\',
                     current_inventory = \'""" + data['current_inventory'] + """\'
                     WHERE (item_uid = \'""" + data['item_uid'] + """\');
@@ -6185,19 +6364,35 @@ class addItems_Prime(Resource):
                     itm_uid = request.form.get('itm_uid')
                     bus_price = request.form.get('bus_price')
                     item_status = request.form.get('item_status')
-                    
+                    item_sizes = request.form.get('item_sizes') if request.form.get('item_sizes') is not None else 'NULL'
+                    item_weigh_unit = request.form.get('item_weigh_unit')
+                    item_qty = request.form.get('item_qty')
+                    item_unit = request.form.get('item_unit') if request.form.get('item_unit') is not None else 'NULL'
+                    receive_date = request.form.get('receive_date')
+                    available_date = request.form.get('available_date')
+                    exp_date = request.form.get('exp_date') if request.form.get('exp_date') is not None else 'NULL'
+
+
+
                     query = ["CALL fth.new_supply_uid();"]
                     NewIDresponse = execute(query[0], 'get', conn)
                     supply_uid = NewIDresponse['result'][0]['new_id']
                     #print('BEFORE',supply_uid,itm_uid)
                     query_insert = """
-                                   INSERT INTO fth.supply (supply_uid, itm_business_uid, sup_item_uid, business_price, item_status) 
+                                   INSERT INTO fth.supply (supply_uid, itm_business_uid, sup_item_uid, business_price, item_status,item_unit,item_sizes,exp_date,item_weigh_unit,item_qty,receive_date,available_date) 
                                    VALUES 
                                    (\'""" + supply_uid + """\',
                                     \'""" + bus_uid + """\',
-                                     \'""" + itm_uid + """\',
-                                      \'""" + bus_price + """\',
-                                       \'""" + item_status + """\');
+                                    \'""" + itm_uid + """\',
+                                    \'""" + bus_price + """\',
+                                    \'""" + item_status + """\',
+                                    \'""" + item_unit + """\',
+                                    \'""" + item_sizes + """\',
+                                    \'""" + exp_date + """\',
+                                    \'""" + item_weigh_unit + """\',
+                                    \'""" + item_qty + """\',
+                                    \'""" + receive_date + """\',
+                                    \'""" + available_date + """\');
                                    """
                     #print('DONE')
                     #print(query_insert)
@@ -6213,13 +6408,7 @@ class addItems_Prime(Resource):
                     item_info = request.form.get('item_info') if request.form.get('item_info') is not None else 'NULL'
                     item_type = request.form.get('item_type') if request.form.get('item_type') is not None else 'NULL'
                     item_desc = request.form.get('item_desc') if request.form.get('item_desc') is not None else 'NULL'
-                    item_unit = request.form.get('item_unit') if request.form.get('item_unit') is not None else 'NULL'
-                    item_price = request.form.get('item_price') if request.form.get('item_price') is not None else 'NULL'
-                    item_sizes = request.form.get('item_sizes') if request.form.get('item_sizes') is not None else 'NULL'
-                    favorite = request.form.get('favorite') if request.form.get('favorite') is not None else 'NULL'
                     item_photo = request.form.get('item_photo') if request.form.get('item_photo') is not None else 'NULL'
-                    exp_date = request.form.get('exp_date') if request.form.get('exp_date') is not None else 'NULL'
-                    taxable = request.form.get('taxable') if request.form.get('taxable') is not None else 'NULL'
                     item_display = request.form.get('item_display') if request.form.get('item_display') is not None else 'NULL'
                     current_inventory = request.form.get('current_inventory') if request.form.get('current_inventory') is not None else 'NULL'
                     print('data done')
@@ -6240,15 +6429,9 @@ class addItems_Prime(Resource):
                                 item_info = \'''' + item_info + '''\',
                                 item_type = \'''' + item_type + '''\',
                                 item_desc = \'''' + item_desc + '''\',
-                                item_unit = \'''' + item_unit + '''\',
-                                item_price = \'''' + str(item_price) + '''\',
-                                item_sizes = \'''' + item_sizes + '''\',
-                                favorite = \'''' + favorite + '''\',
                                 item_photo = \'''' + item_photo_url + '''\',
-                                exp_date = \'''' + exp_date + '''\',
                                 item_display = \'''' + item_display + '''\',
-                                current_inventory = \'''' + current_inventory + '''\',
-                                taxable = \'''' + taxable + '''\';
+                                current_inventory = \'''' + current_inventory + '''\';
                                 '''
                     print(query)
                     items = execute(query_insert, 'post', conn)
@@ -6265,7 +6448,14 @@ class addItems_Prime(Resource):
                 bus_uid = request.form.get('bus_uid')
                 bus_price = request.form.get('bus_price')
                 item_status = request.form.get('item_status')
-                
+                item_sizes = request.form.get('item_sizes') 
+                item_weigh_unit = request.form.get('item_weigh_unit')
+                item_qty = request.form.get('item_qty')
+                item_unit = request.form.get('item_unit') 
+                receive_date = request.form.get('receive_date')
+                available_date = request.form.get('available_date')
+                exp_date = request.form.get('exp_date')
+
                 query = """
                         SELECT * FROM (SELECT * FROM fth.fth_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) as itm
                         WHERE itm.item_uid = \'""" + item_uid + """\' AND itm.itm_business_uid = \'""" + bus_uid + """\';
@@ -6277,7 +6467,7 @@ class addItems_Prime(Resource):
                     return items
                 
                 flag = 0
-                #print(items['result'][0]['item_status'],item_status,items['result'][0]['business_price'],bus_price)
+                print(items['result'][0]['item_status'],item_status,items['result'][0]['business_price'],bus_price)
                 if items['result'][0]['item_status'] == item_status and items['result'][0]['business_price'] == float(bus_price):
                     flag = 1
                 
@@ -6290,15 +6480,9 @@ class addItems_Prime(Resource):
                     item_info = request.form.get('item_info')
                     item_type = request.form.get('item_type')
                     item_desc = request.form.get('item_desc')
-                    item_unit = request.form.get('item_unit')
-                    item_price = request.form.get('item_price')
-                    item_sizes = request.form.get('item_sizes')
-                    favorite = request.form.get('favorite')
-                    taxable = request.form.get('taxable')
                     item_display = request.form.get('item_display') 
                     current_inventory = request.form.get('current_inventory') 
                     item_photo = request.files.get('item_photo') if request.files.get('item_photo') is not None else 'NULL'
-                    exp_date = request.form.get('exp_date')
                     TimeStamp_test = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
                     key = "items/" + str(item_uid) + "_" + TimeStamp_test
                  
@@ -6311,12 +6495,6 @@ class addItems_Prime(Resource):
                                         item_info = \'''' + item_info + '''\',
                                         item_type = \'''' + item_type + '''\',
                                         item_desc = \'''' + item_desc + '''\',
-                                        item_unit = \'''' + item_unit + '''\',
-                                        item_price = \'''' + item_price + '''\',
-                                        item_sizes = \'''' + item_sizes + '''\',
-                                        favorite = \'''' + favorite + '''\',
-                                        taxable = \'''' + taxable + '''\',
-                                        exp_date = \'''' + exp_date + '''\',
                                         item_display = \'''' + item_display + '''\',
                                         current_inventory = \'''' + current_inventory + '''\',
                                         item_photo = \'''' + item_photo+ '''\'
@@ -6334,15 +6512,9 @@ class addItems_Prime(Resource):
                                         item_info = \'""" + item_info + """\',
                                         item_type = \'""" + item_type + """\',
                                         item_desc = \'""" + item_desc + """\',
-                                        item_unit = \'""" + item_unit + """\',
-                                        item_price = \'""" + item_price + """\',
-                                        item_sizes = \'""" + item_sizes + """\',
-                                        favorite = \'""" + favorite + """\',
-                                        taxable = \'""" + taxable + """\',
                                         item_photo = \'""" + item_photo_url + """\',
-                                        exp_date = \'""" + exp_date + """\',
                                         item_display = \'""" + item_display + """\',
-                                        current_inventory = \'""" + current_inventory + """\',
+                                        current_inventory = \'""" + current_inventory + """\'
                                         WHERE item_uid = \'""" + item_uid + """\';
                                     """
                
@@ -6353,23 +6525,40 @@ class addItems_Prime(Resource):
                     return items
 
                 else:
+
+                    print('in else')
                     bus_uid = request.form.get('bus_uid')
                     item_uid = request.form.get('item_uid')
                     bus_price = request.form.get('bus_price')
                     item_status = request.form.get('item_status')
                     sup_uid = request.form.get('sup_uid')
+                    item_sizes = request.form.get('item_sizes') 
+                    item_weigh_unit = request.form.get('item_weigh_unit')
+                    item_qty = request.form.get('item_qty')
+                    item_unit = request.form.get('item_unit') 
+                    receive_date = request.form.get('receive_date')
+                    available_date = request.form.get('available_date')
+                    exp_date = request.form.get('exp_date')
+                    print('before query')
                     query_update =  '''
                                         UPDATE fth.supply
                                         SET 
                                         itm_business_uid = \'''' + bus_uid + '''\',
                                         sup_item_uid = \'''' + item_uid + '''\',
                                         business_price = \'''' + bus_price + '''\',
-                                        item_status = \'''' + item_status + '''\'
+                                        item_status = \'''' + item_status + '''\',
+                                        item_unit = \'''' + item_unit + '''\',
+                                        item_qty = \'''' + item_qty + '''\',
+                                        item_sizes = \'''' + item_sizes + '''\',
+                                        item_weigh_unit = \'''' + item_weigh_unit + '''\',
+                                        receive_date = \'''' + receive_date + '''\',
+                                        available_date = \'''' + available_date + '''\',
+                                        exp_date = \'''' + exp_date + '''\'
                                         WHERE supply_uid = \'''' + sup_uid + '''\';
                                     '''
-
+                    print('after query')
                     items = execute(query_update, 'post', conn)
-                    
+                    print('after execute')
                     if items['code'] != 281:
                         items['message'] = 'check sql query'
                     return items
@@ -8113,8 +8302,10 @@ class UpdateProfile(Resource):
             uid = data['uid']
             f_name = data['first_name']
             l_name = data['last_name']
-            phone = data['phone']
+            phone = data['phone_num']
             email = data['email']
+            id_type = data['id_type']
+            id_number = data['id_number']
             address = data['address']
             unit = data['unit']
             city = data['city']
@@ -8130,6 +8321,8 @@ class UpdateProfile(Resource):
                                     customer_last_name = \'""" + l_name + """\',
                                     customer_phone_num = \'""" + phone + """\',
                                     customer_email = \'""" + email + """\',
+                                    id_type = \'""" + id_type + """\',
+                                    id_number = \'""" + id_number + """\',
                                     customer_address = \'""" + address + """\',
                                     customer_unit = \'""" + unit + """\',
                                     customer_city = \'""" + city + """\',
@@ -14699,8 +14892,13 @@ api.add_resource(update_guid_notification,
 #---customer related endpoints ---#
 
 #---Items page ---#
-api.add_resource(getItems_Prime, '/api/v2/getItems')
-api.add_resource(getItemsByUid, '/api/v2/getItemsByUid/<string:uid>')
+api.add_resource(getItems, '/api/v2/getItems')
+
+#---Profile page ---#
+
+api.add_resource(Profile, '/api/v2/Profile/<string:id>')
+
+api.add_resource(UpdateProfile, '/api/v2/UpdateProfile')
 
 api.add_resource(AllMenus, '/api/v2/allMenus')
 
@@ -14714,11 +14912,9 @@ api.add_resource(Edit_Recipe, '/api/v2/Edit_Recipe')
 
 api.add_resource(Add_New_Ingredient, '/api/v2/Add_New_Ingredient')
 
-api.add_resource(Profile, '/api/v2/Profile/<string:id>')
 
 api.add_resource(Meals_Selected_Specific, '/api/v2/meals_selected_specific')
 
-api.add_resource(UpdateProfile, '/api/v2/UpdateProfile')
 
 api.add_resource(access_refresh_update, '/api/v2/access_refresh_update')
 
@@ -14756,7 +14952,6 @@ api.add_resource(get_delivery_info,
 
 # api.add_resource(Categorical_Options, '/api/v2/Categorical_Options/<string:long>,<string:lat>') #NEED TO FIX, put it later, do we need it?
 
-# api.add_resource(getItems, '/api/v2/getItems') #NEED  TO FIX,
 
 api.add_resource(Refund, '/api/v2/Refund')
 
@@ -14891,6 +15086,8 @@ api.add_resource(Orders_by_Items_total_items,
 
 api.add_resource(categoricalOptions,
                  '/api/v2/categoricalOptions/<string:long>,<string:lat>')
+
+api.add_resource(ProduceByLocation_Prime, '/api/v2/ProduceByLocation/<string:long>,<string:lat>')
 
 api.add_resource(create_update_meals, '/api/v2/create_update_meals')
 
