@@ -5365,19 +5365,19 @@ class food_bank_order_summary_page(Resource):
                 bus_vals = json.loads(bus_vals['z_businesses'])
                 all_bus.update(bus_vals)
             all_bus = str(tuple(list(all_bus)))
-
+            print(business_uid)
             query ="""
-                    SELECT  name,img,unit,business_name,business_price,price,current_inventory,(price-business_price) AS profit, SUM(qty) AS quantity, SUM(qty*business_price) AS total_revenue, SUM(qty*(price-business_price)) AS total_profit,
+                    SELECT  name,img,unit,business_name,business_price,price,fth.fth_items.item_type,(price-business_price) AS profit, SUM(qty) AS quantity, SUM(qty*business_price) AS total_revenue, SUM(qty*(price-business_price)) AS total_profit,
                         (SELECT CONCAT(GROUP_CONCAT(business_name ORDER BY business_name ASC SEPARATOR ','),',', COUNT(business_name))
-                            FROM fth.businesses, fth.supply WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS food_bank
-                    FROM fth.purchases, fth.payments, fth.businesses,
+                            FROM fth.businesses, fth.supply, fth.fth_items WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS food_banks
+                    FROM fth.purchases, fth.payments, fth.businesses, fth.fth_items,
                     JSON_TABLE(items, '$[*]' COLUMNS (
                                 img VARCHAR(255)  PATH '$.img',
                                 qty VARCHAR(255)  PATH '$.qty',
                                 name VARCHAR(255)  PATH '$.name',
                                 price VARCHAR(255)  PATH '$.price',
                                 item_uid VARCHAR(255)  PATH '$.item_uid',
-                                current_inventory VARCHAR(45) PATH '$.current_inventory',
+                                item_type VARCHAR(255)  PATH '$.item_type',
                                 itm_business_uid VARCHAR(255) PATH '$.itm_business_uid',
                                 business_price VARCHAR(255)  PATH '$.business_price',
                                 unit VARCHAR(255)  PATH '$.unit')
@@ -5398,14 +5398,12 @@ class food_bank_order_summary_page(Resource):
             get_fun = food_bank_packing_data()
             packing_data = get_fun.get(business_uid,delivery_date,'function')
             print('after packing_data')
-            print(packing_data)
+            
             for i,vals in enumerate(items['result']):
                 if vals['name'] in packing_data:
                     items['result'][i]['packing'] = packing_data[vals['name']][-1]
-                    print('items if',items['result'])
                 else:
                     items.result[i]['packing'] = ''
-                    print('items else',items['result'])
             return items
             
         except:
@@ -5905,6 +5903,33 @@ class adminCustomerInfo(Resource):
         finally:
             disconnect(conn)
 
+class payment_profit_customer(Resource):
+
+    def get(self, uid):
+        try:
+            conn = connect()
+            query = """
+                    SELECT *, sum(qty*(price-business_price)) as profit,sum(qty) as total_qty
+                    FROM fth.purchases, fth.payments, 
+                    JSON_TABLE(items, '$[*]' COLUMNS (
+                                name VARCHAR(255)  PATH '$.name',
+                                price VARCHAR(255)  PATH '$.price',
+                                item_uid VARCHAR(255)  PATH '$.item_uid',
+                                itm_business_uid VARCHAR(255) PATH '$.itm_business_uid',
+                                business_price VARCHAR(255)  PATH '$.business_price')
+                    ) AS deconstruct
+                    WHERE purchase_uid = pay_purchase_id
+                    AND purchase_status = 'ACTIVE'
+                    AND pur_customer_uid = \'""" + uid + """\'
+                    GROUP BY purchase_uid;
+                    """
+            items = execute(query, 'get', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 class history(Resource):
     # Fetches ALL DETAILS FOR A SPECIFIC USER
@@ -5916,7 +5941,7 @@ class history(Resource):
         try:
             conn = connect()
             query = """
-                    SELECT *
+                    SELECT * 
                     FROM fth.purchases as pur, fth.payments as pay
                     WHERE pur.purchase_uid = pay.pay_purchase_uid AND pur.pur_customer_uid = \'""" + uid + """\' AND pur.purchase_status = 'ACTIVE'
                     ORDER BY pur.purchase_date DESC; 
@@ -6260,7 +6285,6 @@ class admin_items(Resource):
                                                                              "receive_date": vals['receive_date'],
                                                                              "available_date": vals['available_date'],
                                                                              "item_display": vals['item_display'],
-                                                                             "current_inventory": vals['current_inventory'],
                                                                              "food_bank": [[vals['itm_business_uid'], vals['sup_item_uid'], vals['business_price'], vals['item_status'], vals['business_name']]],
                                                                       }
                  
@@ -6328,8 +6352,7 @@ class update_item_admin(Resource):
                     item_type = \'""" + data['item_type'] + """\',
                     item_desc = \'""" + data['item_desc'] + """\', 
                     item_photo = \'""" + data['item_photo'] + """\',
-                    item_display = \'""" + data['item_display'] + """\',
-                    current_inventory = \'""" + data['current_inventory'] + """\'
+                    item_display = \'""" + data['item_display'] + """\'
                     WHERE (item_uid = \'""" + data['item_uid'] + """\');
                     """
                 print(query)
@@ -6410,7 +6433,7 @@ class addItems_Prime(Resource):
                     item_desc = request.form.get('item_desc') if request.form.get('item_desc') is not None else 'NULL'
                     item_photo = request.form.get('item_photo') if request.form.get('item_photo') is not None else 'NULL'
                     item_display = request.form.get('item_display') if request.form.get('item_display') is not None else 'NULL'
-                    current_inventory = request.form.get('current_inventory') if request.form.get('current_inventory') is not None else 'NULL'
+                    
                     print('data done')
                     query = ["CALL fth.new_fth_items_uid;"]
                     NewIDresponse = execute(query[0], 'get', conn)
@@ -6430,8 +6453,7 @@ class addItems_Prime(Resource):
                                 item_type = \'''' + item_type + '''\',
                                 item_desc = \'''' + item_desc + '''\',
                                 item_photo = \'''' + item_photo_url + '''\',
-                                item_display = \'''' + item_display + '''\',
-                                current_inventory = \'''' + current_inventory + '''\';
+                                item_display = \'''' + item_display + '''\';
                                 '''
                     print(query)
                     items = execute(query_insert, 'post', conn)
@@ -6481,7 +6503,7 @@ class addItems_Prime(Resource):
                     item_type = request.form.get('item_type')
                     item_desc = request.form.get('item_desc')
                     item_display = request.form.get('item_display') 
-                    current_inventory = request.form.get('current_inventory') 
+                    
                     item_photo = request.files.get('item_photo') if request.files.get('item_photo') is not None else 'NULL'
                     TimeStamp_test = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
                     key = "items/" + str(item_uid) + "_" + TimeStamp_test
@@ -6496,7 +6518,6 @@ class addItems_Prime(Resource):
                                         item_type = \'''' + item_type + '''\',
                                         item_desc = \'''' + item_desc + '''\',
                                         item_display = \'''' + item_display + '''\',
-                                        current_inventory = \'''' + current_inventory + '''\',
                                         item_photo = \'''' + item_photo+ '''\'
                                         WHERE item_uid = \'''' + item_uid + '''\';
                                     '''
@@ -6513,8 +6534,7 @@ class addItems_Prime(Resource):
                                         item_type = \'""" + item_type + """\',
                                         item_desc = \'""" + item_desc + """\',
                                         item_photo = \'""" + item_photo_url + """\',
-                                        item_display = \'""" + item_display + """\',
-                                        current_inventory = \'""" + current_inventory + """\'
+                                        item_display = \'""" + item_display + """\'
                                         WHERE item_uid = \'""" + item_uid + """\';
                                     """
                
@@ -14854,6 +14874,7 @@ api.add_resource(Businesses, '/api/v2/businesses')
 #---CUSTOMERS ADMIN ---#
 api.add_resource(adminCustomerInfo, '/api/v2/adminCustomerInfo/<string:uid>')
 api.add_resource(history, '/api/v2/history/<string:uid>')
+api.add_resource(payment_profit_customer, '/api/v2/payment_profit_customer/<string:uid>')
 #---ORDERS ADMIN ---#
 api.add_resource(food_bank_packing_data,
                  '/api/v2/food_bank_packing_data/<string:uid>,<string:delivery_date>,<string:action>')
