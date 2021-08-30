@@ -5908,10 +5908,26 @@ class payment_profit_customer(Resource):
     def get(self, uid):
         try:
             conn = connect()
+            business_serving = """
+                                SELECT z_businesses FROm fth.zones;
+                                """
+            business_items = execute(business_serving, 'get', conn)
+            if business_items['code'] != 280:
+                business_items['message'] = 'check sql query'
+
+            all_bus = set()
+            for bus_vals in business_items['result']:
+                bus_vals = json.loads(bus_vals['z_businesses'])
+                all_bus.update(bus_vals)
+            all_bus = str(tuple(list(all_bus)))
+            print(all_bus)
             query = """
-                    SELECT *, sum(qty*(price-business_price)) as profit,sum(qty) as total_qty
+                    SELECT *, sum(qty*(price-business_price)) as profit,sum(qty) as total_qty, 
+                    (SELECT (GROUP_CONCAT(business_name ORDER BY business_name ASC SEPARATOR ','))
+                            FROM fth.businesses WHERE itm_business_uid = business_uid AND business_uid IN """ + all_bus + """) AS food_banks
                     FROM fth.purchases, fth.payments, 
                     JSON_TABLE(items, '$[*]' COLUMNS (
+                                qty VARCHAR(255)  PATH '$.qty',
                                 name VARCHAR(255)  PATH '$.name',
                                 price VARCHAR(255)  PATH '$.price',
                                 item_uid VARCHAR(255)  PATH '$.item_uid',
@@ -5941,7 +5957,7 @@ class history(Resource):
         try:
             conn = connect()
             query = """
-                    SELECT * 
+                    SELECT *
                     FROM fth.purchases as pur, fth.payments as pay
                     WHERE pur.purchase_uid = pay.pay_purchase_uid AND pur.pur_customer_uid = \'""" + uid + """\' AND pur.purchase_status = 'ACTIVE'
                     ORDER BY pur.purchase_date DESC; 
