@@ -210,7 +210,7 @@ def serializeResponse(response):
                 elif (type(row[key]) is date or type(row[key]) is datetime) and row[key] is not None:
                     # Change this back when finished testing to get only date
                     # row[key] = row[key].strftime("%Y-%m-%d")
-                    row[key] = row[key].strftime("%Y-%m-%d %H-%M-%S")
+                    row[key] = row[key].strftime("%Y-%m-%d %H:%M:%S")
                 # elif is_json(row[key]):
                 #     row[key] = json.loads(row[key])
                 elif isinstance(row[key], bytes):
@@ -2787,8 +2787,8 @@ class Next_Billing_Date(Resource):
                                         ON S.sel_purchase_id = GB.sel_purchase_id
                                             AND S.sel_menu_date = GB.sel_menu_date
                                             AND S.selection_time = GB.max_selection_time
-                                WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
-                                    AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
+                                WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H:%M:%S") + """'
+                                    AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """'
                                     AND delivery_day = 'SKIP'
                                 ORDER BY S.sel_menu_date) as ts
                         WHERE lplpibr_customer_uid = '""" + customer_uid + """';
@@ -4376,7 +4376,7 @@ class checkAutoPay(Resource):
             skips = items['result'][0]['skip_count']
             print('skips', skips)
             start_delivery_date = datetime.strptime(
-                start_delivery_date, '%Y-%m-%d %H-%M-%S').date()
+                start_delivery_date, '%Y-%m-%d %H:%M:%S').date()
             end_day = datetime.strptime(end_day, '%Y-%m-%d').date()
             delivered = (end_day - start_delivery_date).days//7 + 1 - skips
 
@@ -8730,7 +8730,7 @@ class adminInfo(Resource):
         print("in refund calculator")
         # Getting the original start and end date for requesting purchase
         start_delivery_date = datetime.strptime(
-            info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
+            info_res['start_delivery_date'], "%Y-%m-%d %H:%M:%S")
         # check for SKIP. Let consider the simple case. The customer can change their purchases if and only if their purchase
         # still active.
         week_remaining = int(info_res['payment_frequency'])
@@ -8745,8 +8745,8 @@ class adminInfo(Resource):
                                 ON S.sel_purchase_id = GB.sel_purchase_id
                                     AND S.sel_menu_date = GB.sel_menu_date
                                     AND S.selection_time = GB.max_selection_time
-                        WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
-                            AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
+                        WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H:%M:%S") + """'
+                            AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """'
                             AND delivery_day = 'SKIP'
                         ORDER BY S.sel_menu_date;
                     """
@@ -10544,7 +10544,7 @@ class Get_Tags_With_GUID_iOS(Resource):
 #     def refund_calculator(self, info_res,  conn):
 
 #         # Getting the original start and end date for requesting purchase
-#         start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
+#         start_delivery_date = datetime.strptime(info_res['start_delivery_date'], "%Y-%m-%d %H:%M:%S")
 #         # check for SKIP. Let consider the simple case. The customer can change their purchases if and only if their purchase
 #         # still active.
 #         week_remaining = int(info_res['payment_frequency'])
@@ -10560,8 +10560,8 @@ class Get_Tags_With_GUID_iOS(Resource):
 #                             ON S.sel_purchase_id = GB.sel_purchase_id
 #                                 AND S.sel_menu_date = GB.sel_menu_date
 #                                 AND S.selection_time = GB.max_selection_time
-#                     WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H-%M-%S") + """'
-#                         AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H-%M-%S") + """'
+#                     WHERE S.sel_menu_date >= '""" + start_delivery_date.strftime("%Y-%m-%d %H:%M:%S") + """'
+#                         AND S.sel_menu_date <= '""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """'
 #                         AND delivery_day = 'SKIP'
 #                     ORDER BY S.sel_menu_date;
 #                     """
@@ -11586,9 +11586,9 @@ def couponsLogic(id, email, amount_due):
                             print('4')
                             print(vals['expire_date'])
                             print(datetime.strptime(
-                                vals['expire_date'], "%Y-%m-%d %H-%M-%S"))
+                                vals['expire_date'], "%Y-%m-%d %H:%M:%S"))
                             print(datetime.now())
-                            if datetime.strptime(vals['expire_date'], "%Y-%m-%d %H-%M-%S") >= datetime.now():
+                            if datetime.strptime(vals['expire_date'], "%Y-%m-%d %H:%M:%S") >= datetime.now():
                                 print('5')
                                 coupons[vals['coupon_uid']] = [
                                     vals['discount_percent'], vals['discount_amount'], vals['discount_shipping']]
@@ -11860,7 +11860,7 @@ class test_cal(Resource):
         # checking skips new
 
         start_delivery_date = datetime.strptime(
-            info_res['start_delivery_date'], "%Y-%m-%d %H-%M-%S")
+            info_res['start_delivery_date'], "%Y-%m-%d %H:%M:%S")
         week_remaining = int(info_res['payment_frequency'])
 
         all_deliveries = """
