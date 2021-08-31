@@ -5367,9 +5367,7 @@ class food_bank_order_summary_page(Resource):
             all_bus = str(tuple(list(all_bus)))
             print(business_uid)
             query ="""
-                    SELECT  name,img,unit,business_name,business_price,price,fth.fth_items.item_type,(price-business_price) AS profit, SUM(qty) AS quantity, SUM(qty*business_price) AS total_revenue, SUM(qty*(price-business_price)) AS total_profit,
-                        (SELECT CONCAT(GROUP_CONCAT(business_name ORDER BY business_name ASC SEPARATOR ','),',', COUNT(business_name))
-                            FROM fth.businesses, fth.supply, fth.fth_items WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS food_banks
+                    SELECT  name,img,unit,business_name,business_price,price,fth.fth_items.item_type,qty AS quantity
                     FROM fth.purchases, fth.payments, fth.businesses, fth.fth_items,
                     JSON_TABLE(items, '$[*]' COLUMNS (
                                 img VARCHAR(255)  PATH '$.img',
@@ -5471,6 +5469,22 @@ class business_details_update(Resource):
                 businessID = execute(query[0], 'get', conn)
                 businessUID = businessID['result'][0]['new_id']
 
+                business_hours = str(data['business_hours'])
+                business_hours = "'" + business_hours.replace("'", "\"") + "'"
+                print(business_hours)
+                business_accepting_hours = str(
+                    data['business_accepting_hours'])
+                business_accepting_hours = "'" + \
+                    business_accepting_hours.replace("'", "\"") + "'"
+                print(business_accepting_hours)
+                business_delivery_hours = str(data['business_delivery_hours'])
+                business_delivery_hours = "'" + \
+                    business_delivery_hours.replace("'", "\"") + "'"
+                print(business_delivery_hours)
+                item_types = str(data['item_types'])
+                item_types = "'" + \
+                    item_types.replace("'", "\"") + "'"
+                print(item_types)
                 query = """
                                INSERT INTO fth.businesses
                                SET 
@@ -5483,29 +5497,25 @@ class business_details_update(Resource):
                                business_phone_num = \'""" + data["business_phone_num"] + """\',
                                business_phone_num2 = \'""" + data["business_phone_num2"] + """\',
                                business_email = \'""" + data["business_email"] + """\',
+                               business_hours = """ + business_hours + """,
+                               business_accepting_hours = """ + business_accepting_hours + """,
+                               business_delivery_hours = """ + business_delivery_hours + """,
                                business_address = \'""" + data["business_address"] + """\',
                                business_unit = \'""" + data["business_unit"] + """\',
                                business_city = \'""" + data["business_city"] + """\',
                                business_state = \'""" + data["business_state"] + """\',
                                business_zip = \'""" + data["business_zip"] + """\',
-                               business_longitude = \'""" + data["business_longitude"] + """\',
-                               business_latitude = \'""" + data["business_latitude"] + """\',
                                can_cancel = \'""" + data["can_cancel"] + """\',
                                delivery = \'""" + data["delivery"] + """\',
                                reusable = \'""" + data["reusable"] + """\',
                                business_image = \'""" + data["business_image"] + """\',
-                               business_password = \'""" + data["business_password"] + """\',
-                               platform_fee = \'""" + data["platform_fee"] + """\',
-                               transaction_fee = \'""" + data["transaction_fee"] + """\',
-                               revenue_sharing = \'""" + data["revenue_sharing"] + """\',
-                               profit_sharing = \'""" + data["profit_sharing"] + """\',
                                business_status = \'""" + data["business_status"] + """\',
                                business_facebook_url = \'""" + data["business_facebook_url"] + """\',
                                business_instagram_url = \'""" + data["business_instagram_url"] + """\',
                                business_twitter_url = \'""" + data["business_twitter_url"] + """\',
                                business_website_url = \'""" + data["business_website_url"] + """\',
                                limit_per_person = \'""" + data["limit_per_person"] + """\',
-                               item_types = \'""" + data["item_types"] + """\',
+                               item_types = """ + item_types + """,
                                business_uid = \'""" + businessUID + """\' ;
                              """
                 print(query)
@@ -5524,9 +5534,6 @@ class business_details_update(Resource):
                 print("IN ELSE")
                 print(data)
                 print('IN')
-                business_association = str(data['business_association'])
-                business_association = "'" + business_association.replace("'", "\"") + "'"
-                print(business_association)
                 business_hours = str(data['business_hours'])
                 business_hours = "'" + business_hours.replace("'", "\"") + "'"
                 print(business_hours)
@@ -5536,15 +5543,17 @@ class business_details_update(Resource):
                 business_delivery_hours = str(data['business_delivery_hours'])
                 business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
                 print(business_delivery_hours)
+                item_types = str(data['item_types'])
+                item_types = "'" + \
+                    item_types.replace("'", "\"") + "'"
+                print(item_types)
                 print('OUT')
                 query = """
                                UPDATE fth.businesses
                                SET 
-                               business_created_at = \'""" + data["business_created_at"] + """\',
                                business_name = \'""" + data["business_name"] + """\',
                                business_type = \'""" + data["business_type"] + """\',
                                business_desc = \'""" + data["business_desc"] + """\',
-                               business_association = """ + business_association + """,
                                business_contact_first_name = \'""" + data["business_contact_first_name"] + """\',
                                business_contact_last_name = \'""" + data["business_contact_last_name"] + """\',
                                business_phone_num = \'""" + data["business_phone_num"] + """\',
@@ -5558,24 +5567,17 @@ class business_details_update(Resource):
                                business_city = \'""" + data["business_city"] + """\',
                                business_state = \'""" + data["business_state"] + """\',
                                business_zip = \'""" + data["business_zip"] + """\',
-                               business_longitude = \'""" + data["business_longitude"] + """\',
-                               business_latitude = \'""" + data["business_latitude"] + """\',
                                can_cancel = \'""" + data["can_cancel"] + """\',
                                delivery = \'""" + data["delivery"] + """\',
                                reusable = \'""" + data["reusable"] + """\',
                                business_image = \'""" + data["business_image"] + """\',
-                               business_password = \'""" + data["business_password"] + """\',
-                               platform_fee = \'""" + data["platform_fee"] + """\',
-                               transaction_fee = \'""" + data["transaction_fee"] + """\',
-                               revenue_sharing = \'""" + data["revenue_sharing"] + """\',
-                               profit_sharing = \'""" + data["profit_sharing"] + """\',
                                business_status = \'""" + data["business_status"] + """\',
                                business_facebook_url = \'""" + data["business_facebook_url"] + """\',
                                business_instagram_url = \'""" + data["business_instagram_url"] + """\',
                                business_twitter_url = \'""" + data["business_twitter_url"] + """\',
                                business_website_url = \'""" + data["business_website_url"] + """\',
                                limit_per_person = \'""" + data["limit_per_person"] + """\',
-                               item_types = \'""" + data["item_types"] + """\'
+                               item_types = """ + item_types + """
                                WHERE business_uid = \'""" + data["business_uid"] + """\' ;
                              """
                 print("sfter query")
@@ -5766,9 +5768,14 @@ class admin_food_bank_items(Resource):
         try:
             conn = connect()
             query = """
-                    SELECT *
-                    FROM fth.fth_items item 
-                    LEFT JOIN fth.supply sup ON item.item_uid = sup_item_uid WHERE sup.itm_business_uid= \'""" + business_uid + """\' AND item_status != 'Hidden'; 
+                    SELECT *                 
+                    FROM fth.packages pck
+                    LEFT JOIN fth.fth_items item
+                    ON item.item_uid = package_item_uid
+                    LEFT JOIN fth.supply sup
+                    ON sup_package_uid = pck.package_uid
+
+                    WHERE sup.itm_business_uid= \'""" + business_uid + """\' AND item_status != 'Hidden'; 
                     """
             items = execute(query, 'get', conn)
 
@@ -5793,17 +5800,27 @@ class update_food_bank_item_admin(Resource):
                 query = """
                     UPDATE 
                     fth.supply 
-                    SET 
+                    SET
+                    sup_package_uid = \'""" + data['package_uid'] + """\',
                     business_price = \'""" + str(data['business_price']) + """\', 
-                    item_status = \'""" + data['item_status'] + """\',
-                    item_sizes = \'""" + str(data['item_sizes']) + """\',
-                    item_weigh_unit = \'""" + data['item_weigh_unit'] + """\',
+                    item_status = \'""" + data['item_status'] + """\', 
                     item_qty = \'""" + str(data['item_qty']) + """\',
-                    item_unit = \'""" + data['item_unit'] + """\',
                     receive_date = \'""" + data['receive_date'] + """\',
                     available_date = \'""" + data['available_date'] + """\',
                     exp_date = \'""" + data['exp_date'] + """\'
-                    WHERE (supply_uid = \'""" + data['supply_uid'] + """\');
+                    WHERE supply_uid = \'""" + data['supply_uid'] + """\' ;
+                    """
+                query1 = """
+                    UPDATE 
+                    fth.packages 
+                    SET 
+                    purchase_size = \'""" + str(data['purchase_size']) + """\',
+                    purchase_unit = \'""" + data['purchase_unit'] + """\',
+                    use_size = \'""" + str(data['use_size']) + """\',
+                    use_unit = \'""" + data['use_unit'] + """\',
+                    unit_size = \'""" + str(data['unit_size']) + """\',
+                    unit_unit = \'""" + data['unit_unit'] + """\'
+                    WHERE (package_uid = \'""" + data['package_uid'] + """\');
                     """
             else:
                 query = """
@@ -5814,8 +5831,10 @@ class update_food_bank_item_admin(Resource):
                         WHERE (supply_uid = \'""" + data['supply_uid'] + """\');
                         """
             items = execute(query, 'post', conn)
-            print(items)
-            return items
+            items1 = execute(query1, 'post', conn)
+
+            
+            return items,items1
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -6028,8 +6047,14 @@ class food_bank_packing_data(Resource):
             print(items)
             business_name = items['result'][0]['business_name']
             query = """
-                    SELECT obf.*, pay.start_delivery_date, pay.payment_uid, itm.business_price, SUM(obf.qty) AS total_qty, SUM(itm.business_price) AS total_price, itm.item_unit, itm.item_photo
-                    FROM fth.orders_by_farm AS obf, fth.payments AS pay, (SELECT * FROM fth.fth_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) AS itm
+                    SELECT obf.*, pay.start_delivery_date, pay.payment_uid, itm.business_price, SUM(obf.qty) AS total_qty, SUM(itm.business_price) AS total_price, itm.purchase_unit, itm.item_photo
+                    FROM fth.orders_by_farm AS obf, fth.payments AS pay, 
+                    (SELECT *                 
+                    FROM fth.packages
+                    LEFT JOIN fth.fth_items 
+                    ON item_uid = package_item_uid
+                    LEFT JOIN fth.supply 
+                    ON sup_package_uid = package_uid) AS itm
                     WHERE obf.purchase_uid = pay.pay_purchase_uid AND obf.item_uid = itm.item_uid AND obf.itm_business_uid = itm.itm_business_uid AND pay.start_delivery_date LIKE \'""" + delivery_date + '%' + """\' AND obf.itm_business_uid = \'""" + uid + """\'
                     GROUP BY  obf.delivery_address, obf.delivery_unit, obf.delivery_city, obf.delivery_state, obf.delivery_zip, obf.item_uid;
                     """
@@ -6040,7 +6065,7 @@ class food_bank_packing_data(Resource):
                 return items
 
             result = items['result']
-
+            print(items['result'])
             if not len(result):
                 return "no data"
 
@@ -6051,7 +6076,7 @@ class food_bank_packing_data(Resource):
                     itm_dict[vals['name']][0] += int(vals['total_qty'])
                 else:
                     itm_dict[vals['name']] = [int(
-                        vals['total_qty']), vals['business_price'], vals['item_unit'], vals['item_photo'], []]
+                        vals['total_qty']), vals['business_price'], vals['purchase_unit'], vals['item_photo'], []]
             #print('dict------', itm_dict)
 
             #print('cust_dict------', cust_dict)
@@ -6119,7 +6144,13 @@ class replace_produce_admin(Resource):
 
             query_prod = """
                         SELECT item_uid, business_price, item_photo
-                        FROM (SELECT * FROM fth.fth_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) as itm
+                        FROM 
+                        (SELECT * 
+                        FROM fth.packages 
+                        LEFT JOIN fth.fth_items
+                        ON item_uid = package_item_uid
+                        LEFT JOIN fth.supply
+                        ON sup_package_uid = package_uid) as itm
                         WHERE itm.item_name =  \'""" + produce_name + """\' AND itm.itm_business_uid = \'""" + farm_uid + """\';
                         """
 
@@ -6203,9 +6234,8 @@ class order_summary_page(Resource):
             print(all_bus)
 
             query ="""
-                    SELECT  name,img,unit,business_name,business_price,price,fth.fth_items.item_type,(price-business_price) AS profit, SUM(qty) AS quantity, SUM(qty*price) AS total_revenue, SUM(qty*(price-business_price)) AS total_profit,
-                        (SELECT CONCAT(GROUP_CONCAT(business_name ORDER BY business_name ASC SEPARATOR ','),',', COUNT(business_name))
-                            FROM fth.businesses, fth.supply WHERE sup_item_uid = deconstruct.item_uid AND itm_business_uid = business_uid AND item_status = 'Active' AND business_uid IN """ + all_bus + """) AS food_banks
+                    SELECT  name,img,unit,business_name AS food_bank,qty AS quantity,
+                        (SELECT item_type FROM fth.fth_items WHERE deconstruct.item_uid = item_uid) AS item_type
                     FROM fth.purchases, fth.payments, fth.businesses, fth.fth_items,
                     JSON_TABLE(items, '$[*]' COLUMNS (
                                 img VARCHAR(255)  PATH '$.img',
@@ -6213,7 +6243,6 @@ class order_summary_page(Resource):
                                 name VARCHAR(255)  PATH '$.name',
                                 price VARCHAR(255)  PATH '$.price',
                                 item_uid VARCHAR(255)  PATH '$.item_uid',
-                                item_type VARCHAR(255)  PATH '$.item_type',
                                 itm_business_uid VARCHAR(255) PATH '$.itm_business_uid',
                                 business_price VARCHAR(255)  PATH '$.business_price',
                                 unit VARCHAR(255)  PATH '$.unit')
@@ -6226,6 +6255,7 @@ class order_summary_page(Resource):
                     Order BY name;
                     """
             items = execute(query,'get',conn)
+
             if items['code'] != 280:
                 items['message'] = 'check sql query'
             
@@ -6268,9 +6298,11 @@ class admin_items(Resource):
             conn = connect()
             query = """
                     SELECT *, (SELECT business_name FROM fth.businesses WHERE business_uid = itm_business_uid) AS business_name
-                    FROM fth.fth_items 
-                    LEFT JOIN fth.supply 
-                    ON item_uid = sup_item_uid
+                    FROM fth.packages 
+                    LEFT JOIN fth.fth_items
+                    ON item_uid = package_item_uid
+                    LEFT JOIN fth.supply
+                    ON sup_package_uid = package_uid
                     ORDER BY item_name , business_price;
                     
                     """
@@ -6279,37 +6311,39 @@ class admin_items(Resource):
             if items['code'] != 280:
                 items['message'] = 'check sql query'
                 return items
-            
+            print(items['result'])
             produce_dict = {}
             for vals in items['result']:
-                
-                if (vals['item_name']+","+vals['item_unit']) not in produce_dict:
+                print("1")
+                print(vals['item_name'])
+                if (vals['item_name']+","+vals['purchase_unit']) not in produce_dict:
                     print(vals['item_name'])
-                    produce_dict[vals['item_name']+","+vals['item_unit']] = {"item_uid": vals['item_uid'],
+                    produce_dict[vals['item_name']+","+vals['purchase_unit']] = {"item_uid": vals['item_uid'],
                                                                              "item_name": vals['item_name'],
                                                                              "item_info": vals['item_info'],
                                                                              "item_type": vals['item_type'],
                                                                              "item_desc": vals['item_desc'],
                                                                              "brand_name":vals['brand_name'],
                                                                              "item_qty": vals['item_qty'],
-                                                                             "item_unit": vals['item_unit'],
+                                                                             "purchase_size": vals['purchase_size'],
+                                                                             "purchase_unit": vals['purchase_unit'],
+                                                                             "use_size": vals['use_size'],
+                                                                             "use_unit": vals['use_unit'],
                                                                              "item_price": vals['business_price'],
-                                                                             "item_size": vals['item_sizes'],
-                                                                             "item_weigh_unit": vals['item_weigh_unit'],
                                                                              "item_photo": vals['item_photo'],
                                                                              "exp_date": vals['exp_date'],
                                                                              "receive_date": vals['receive_date'],
                                                                              "available_date": vals['available_date'],
                                                                              "item_display": vals['item_display'],
-                                                                             "food_bank": [[vals['itm_business_uid'], vals['sup_item_uid'], vals['business_price'], vals['item_status'], vals['business_name']]],
+                                                                             "food_bank": [[vals['itm_business_uid'], vals['sup_package_uid'], vals['business_price'], vals['item_status'], vals['business_name']]],
                                                                       }
                  
                     
                     #print(len(produce_dict[vals['item_name']+","+vals['item_unit']]["food_bank"]))
                 else:
-                    
-                    produce_dict[vals['item_name']+","+vals['item_unit']]["food_bank"].append(
-                        [vals['itm_business_uid'], vals['sup_item_uid'], vals['business_price'], vals['item_status'], vals['business_name']])
+                    print("2")
+                    produce_dict[vals['item_name']+","+vals['purchase_unit']]["food_bank"].append(
+                        [vals['itm_business_uid'], vals['sup_package_uid'], vals['business_price'], vals['item_status'], vals['business_name']])
                     
                     
             print("OUT")    
