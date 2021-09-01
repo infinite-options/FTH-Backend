@@ -2068,7 +2068,11 @@ class getItems(Resource):
                 print("in if")
                 query = """
                         SELECT * 
-                        FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                        FROM (SELECT * FROM fth.packages 
+                        LEFT JOIN fth.fth_items
+                        ON item_uid = package_item_uid
+                        LEFT JOIN fth.supply
+                        ON sup_package_uid = package_uid) as tt
                         WHERE item_status = 'Active'
                         ORDER BY item_name;
                         """
@@ -2077,7 +2081,11 @@ class getItems(Resource):
                 ids.append('')
                 query = """
                         SELECT * 
-                        FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                        FROM (SELECT * FROM fth.packages 
+                        LEFT JOIN fth.fth_items
+                        ON item_uid = package_item_uid
+                        LEFT JOIN fth.supply
+                        ON sup_package_uid = package_uid) as tt
                         WHERE itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
                         GROUP BY item_name
                         ORDER BY item_name;
@@ -2087,7 +2095,11 @@ class getItems(Resource):
                 types.append('')
                 query = """
                         SELECT * 
-                        FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                        FROM (SELECT * FROM fth.packages 
+                        LEFT JOIN fth.fth_items
+                        ON item_uid = package_item_uid
+                        LEFT JOIN fth.supply
+                        ON sup_package_uid = package_uid) as tt
                         WHERE item_type IN """ + str(tuple(types)) + """ AND item_status = 'Active'
                         GROUP BY item_name
                         ORDER BY item_name;
@@ -2096,7 +2108,11 @@ class getItems(Resource):
                 print("in else")
                 query = """
                         SELECT * 
-                        FROM (select * from fth.fth_items left join fth.supply on item_uid = sup_item_uid) as tt
+                        FROM (SELECT * FROM fth.packages 
+                        LEFT JOIN fth.fth_items
+                        ON item_uid = package_item_uid
+                        LEFT JOIN fth.supply
+                        ON sup_package_uid = package_uid) as tt
                         WHERE item_type IN """ + str(tuple(types)) + """ AND itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
                         GROUP BY item_name
                         ORDER BY item_name;
@@ -2207,7 +2223,11 @@ class ProduceByLocation_Prime(Resource):
 
             query = """
                     SELECT * 
-                    FROM (SELECT * FROM fth.fth_items LEFT JOIN fth.supply ON item_uid = sup_item_uid) as tmp
+                    FROM (SELECT * FROM fth.packages 
+                        LEFT JOIN fth.fth_items
+                        ON item_uid = package_item_uid
+                        LEFT JOIN fth.supply
+                        ON sup_package_uid = package_uid) as tmp
                     WHERE itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
                     ORDER BY item_name;
                     """
@@ -5791,13 +5811,16 @@ class update_food_bank_item_admin(Resource):
             print("in")
             data = request.get_json(force=True)
             print(data)
+            package_uid = """ SELECT sup_package_uid FROM fth.supply WHERE supply_uid = \'""" + data['supply_uid'] + """\' ; """
+            package_uid = execute(package_uid, 'get', conn)
+            print([package_uid['result']])
+                
             if action == 'update':
                 print("in if")
                 query = """
                     UPDATE 
                     fth.supply 
                     SET
-                    sup_package_uid = \'""" + data['package_uid'] + """\',
                     business_price = \'""" + str(data['business_price']) + """\', 
                     item_status = \'""" + data['item_status'] + """\', 
                     item_qty = \'""" + str(data['item_qty']) + """\',
@@ -6043,7 +6066,7 @@ class food_bank_packing_data(Resource):
             print(items)
             business_name = items['result'][0]['business_name']
             query = """
-                    SELECT obf.*, pay.start_delivery_date, pay.payment_uid, itm.business_price, SUM(obf.qty) AS total_qty, SUM(itm.business_price) AS total_price, itm.purchase_unit, itm.item_photo
+                    SELECT obf.*, pay.start_delivery_date, pay.payment_uid, itm.business_price, SUM(obf.qty) AS total_qty, SUM(itm.business_price) AS total_price, itm.package_unit, itm.item_photo
                     FROM fth.orders_by_farm AS obf, fth.payments AS pay, 
                     (SELECT *                 
                     FROM fth.packages
@@ -6072,7 +6095,7 @@ class food_bank_packing_data(Resource):
                     itm_dict[vals['name']][0] += int(vals['total_qty'])
                 else:
                     itm_dict[vals['name']] = [int(
-                        vals['total_qty']), vals['business_price'], vals['purchase_unit'], vals['item_photo'], []]
+                        vals['total_qty']), vals['business_price'], vals['package_unit'], vals['item_photo'], []]
             #print('dict------', itm_dict)
 
             #print('cust_dict------', cust_dict)
@@ -6307,24 +6330,25 @@ class admin_items(Resource):
             if items['code'] != 280:
                 items['message'] = 'check sql query'
                 return items
-            print(items['result'])
             produce_dict = {}
             for vals in items['result']:
                 print("1")
-                print(vals['item_name'])
-                if (vals['item_name']+","+vals['purchase_unit']) not in produce_dict:
-                    print(vals['item_name'])
-                    produce_dict[vals['item_name']+","+vals['purchase_unit']] = {"item_uid": vals['item_uid'],
+                
+                if (vals['item_name']+","+vals['package_unit']) not in produce_dict:
+                    
+                    produce_dict[vals['item_name']+","+vals['package_unit']] = {"item_uid": vals['item_uid'],
                                                                              "item_name": vals['item_name'],
                                                                              "item_info": vals['item_info'],
                                                                              "item_type": vals['item_type'],
                                                                              "item_desc": vals['item_desc'],
                                                                              "brand_name":vals['brand_name'],
                                                                              "item_qty": vals['item_qty'],
-                                                                             "purchase_size": vals['purchase_size'],
-                                                                             "purchase_unit": vals['purchase_unit'],
-                                                                             "use_size": vals['use_size'],
-                                                                             "use_unit": vals['use_unit'],
+                                                                             "package_num": vals['package_num'],
+                                                                             "package_unit": vals['package_unit'],
+                                                                             "item_num": vals['item_num'],
+                                                                             "item_unit": vals['item_unit'],
+                                                                             "measure_num": vals['measure_num'],
+                                                                             "measure_unit": vals['measure_unit'],
                                                                              "item_price": vals['business_price'],
                                                                              "item_photo": vals['item_photo'],
                                                                              "exp_date": vals['exp_date'],
@@ -6338,14 +6362,14 @@ class admin_items(Resource):
                     #print(len(produce_dict[vals['item_name']+","+vals['item_unit']]["food_bank"]))
                 else:
                     print("2")
-                    produce_dict[vals['item_name']+","+vals['purchase_unit']]["food_bank"].append(
+                    produce_dict[vals['item_name']+","+vals['package_unit']]["food_bank"].append(
                         [vals['itm_business_uid'], vals['sup_package_uid'], vals['business_price'], vals['item_status'], vals['business_name']])
                     
                     
             print("OUT")    
             final_res = [value for key, value in produce_dict.items()]
             items['result'] = final_res
-            print(final_res)
+            
             return items
         except:
             raise BadRequest('Request failed, please try again later.')
