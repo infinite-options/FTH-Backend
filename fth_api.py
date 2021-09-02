@@ -5567,9 +5567,9 @@ class business_details_update(Resource):
                 query = """
                                UPDATE fth.businesses
                                SET 
-                               business_name = \'""" + data["business_name"] + """\',
+                               business_name = \'""" + str(data["business_name"]).replace("'","''") + """\',
                                business_type = \'""" + data["business_type"] + """\',
-                               business_desc = \'""" + data["business_desc"] + """\',
+                               business_desc = \'""" + str(data["business_desc"]).replace("'", "''") + """\',
                                business_contact_first_name = \'""" + data["business_contact_first_name"] + """\',
                                business_contact_last_name = \'""" + data["business_contact_last_name"] + """\',
                                business_phone_num = \'""" + data["business_phone_num"] + """\',
@@ -5596,7 +5596,7 @@ class business_details_update(Resource):
                                item_types = """ + item_types + """
                                WHERE business_uid = \'""" + data["business_uid"] + """\' ;
                              """
-                print("sfter query")
+                print("after query")
                 print(query)
                 item = execute(query, 'post', conn)
                 print(item)
@@ -5811,9 +5811,7 @@ class update_food_bank_item_admin(Resource):
             print("in")
             data = request.get_json(force=True)
             print(data)
-            package_uid = """ SELECT sup_package_uid FROM fth.supply WHERE supply_uid = \'""" + data['supply_uid'] + """\' ; """
-            package_uid = execute(package_uid, 'get', conn)
-            print([package_uid['result']])
+            
                 
             if action == 'update':
                 print("in if")
@@ -5821,26 +5819,17 @@ class update_food_bank_item_admin(Resource):
                     UPDATE 
                     fth.supply 
                     SET
+                    itm_business_uid = \'""" + data['itm_business_uid'] + """\',
                     business_price = \'""" + str(data['business_price']) + """\', 
                     item_status = \'""" + data['item_status'] + """\', 
+                    sup_type = \'""" + data['sup_type'] + """\',
                     item_qty = \'""" + str(data['item_qty']) + """\',
                     receive_date = \'""" + data['receive_date'] + """\',
                     available_date = \'""" + data['available_date'] + """\',
                     exp_date = \'""" + data['exp_date'] + """\'
                     WHERE supply_uid = \'""" + data['supply_uid'] + """\' ;
                     """
-                query1 = """
-                    UPDATE 
-                    fth.packages 
-                    SET 
-                    purchase_size = \'""" + str(data['purchase_size']) + """\',
-                    purchase_unit = \'""" + data['purchase_unit'] + """\',
-                    use_size = \'""" + str(data['use_size']) + """\',
-                    use_unit = \'""" + data['use_unit'] + """\',
-                    unit_size = \'""" + str(data['unit_size']) + """\',
-                    unit_unit = \'""" + data['unit_unit'] + """\'
-                    WHERE (package_uid = \'""" + data['package_uid'] + """\');
-                    """
+                
             else:
                 query = """
                         UPDATE 
@@ -5850,10 +5839,9 @@ class update_food_bank_item_admin(Resource):
                         WHERE (supply_uid = \'""" + data['supply_uid'] + """\');
                         """
             items = execute(query, 'post', conn)
-            items1 = execute(query1, 'post', conn)
 
             
-            return items,items1
+            return items
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -6342,6 +6330,7 @@ class admin_items(Resource):
                                                                              "item_type": vals['item_type'],
                                                                              "item_desc": vals['item_desc'],
                                                                              "brand_name":vals['brand_name'],
+                                                                             "item_tags":vals['item_tags'],
                                                                              "item_qty": vals['item_qty'],
                                                                              "package_num": vals['package_num'],
                                                                              "package_unit": vals['package_unit'],
@@ -6454,13 +6443,10 @@ class addItems_Prime(Resource):
                     #print('IN IF')
                     #print(request.form)
                     bus_uid = request.form.get('bus_uid')
-                    itm_uid = request.form.get('itm_uid')
+                    package_uid = request.form.get('package_uid')
                     bus_price = request.form.get('bus_price')
                     item_status = request.form.get('item_status')
-                    item_sizes = request.form.get('item_sizes') if request.form.get('item_sizes') is not None else 'NULL'
-                    item_weigh_unit = request.form.get('item_weigh_unit')
                     item_qty = request.form.get('item_qty')
-                    item_unit = request.form.get('item_unit') if request.form.get('item_unit') is not None else 'NULL'
                     receive_date = request.form.get('receive_date')
                     available_date = request.form.get('available_date')
                     exp_date = request.form.get('exp_date') if request.form.get('exp_date') is not None else 'NULL'
@@ -6472,17 +6458,14 @@ class addItems_Prime(Resource):
                     supply_uid = NewIDresponse['result'][0]['new_id']
                     #print('BEFORE',supply_uid,itm_uid)
                     query_insert = """
-                                   INSERT INTO fth.supply (supply_uid, itm_business_uid, sup_item_uid, business_price, item_status,item_unit,item_sizes,exp_date,item_weigh_unit,item_qty,receive_date,available_date) 
+                                   INSERT INTO fth.supply (supply_uid, itm_business_uid, sup_package_uid, business_price, item_status,exp_date,item_qty,receive_date,available_date) 
                                    VALUES 
                                    (\'""" + supply_uid + """\',
                                     \'""" + bus_uid + """\',
-                                    \'""" + itm_uid + """\',
+                                    \'""" + package_uid + """\',
                                     \'""" + bus_price + """\',
                                     \'""" + item_status + """\',
-                                    \'""" + item_unit + """\',
-                                    \'""" + item_sizes + """\',
                                     \'""" + exp_date + """\',
-                                    \'""" + item_weigh_unit + """\',
                                     \'""" + item_qty + """\',
                                     \'""" + receive_date + """\',
                                     \'""" + available_date + """\');
