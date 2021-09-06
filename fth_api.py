@@ -5308,7 +5308,7 @@ class predict_autopay_day(Resource):
 #--------------------------------------------#
 #  -- ITEMS ADMIN RELATED ENDPOINTS    -----------------------------------------
 
-class foodbank_items(Resource):
+class supply_items(Resource):
     def get(self):
         try:
             conn = connect()
@@ -5317,10 +5317,10 @@ class foodbank_items(Resource):
                     s.*,
                     brand_name,
                     item_name
-                    FROM sn.supply2 s
-                    LEFT JOIN sn.brand
+                    FROM fth.supply2 s
+                    LEFT JOIN fth.brand
                         ON brand_uid = sup_brand_uid
-                    LEFT JOIN sn.items
+                    LEFT JOIN fth.items
                         ON item_uid = sup_item_uid
                     ORDER BY item_name;
                     
@@ -5461,12 +5461,12 @@ class foodbank_donations(Resource):
                     receive_date,
                     available_date,
                     exp_date
-                    FROM sn.supply2 s
-                    LEFT JOIN sn.brand
+                    FROM fth.supply2 s
+                    LEFT JOIN fth.brand
                         ON brand_uid = sup_brand_uid
-                    LEFT JOIN sn.items
+                    LEFT JOIN fth.items
                         ON item_uid = sup_item_uid
-                    LEFT JOIN sn.receive
+                    LEFT JOIN fth.receive
                         ON receive_supply_uid = supply_uid
                     WHERE receive_supply_uid = supply_uid AND receive_business_uid = \'""" + business_uid + """\'
                     ORDER BY item_name;
@@ -15178,7 +15178,7 @@ api.add_resource(update_guid_notification,
 #**********************************************************************************#
 #  -- ADMIN RELATED ENDPOINTS    -----------------------------------------
 #---ITEMS ADMIN ---#
-api.add_resource(foodbank_items,'/api/v2/foodbank_items')
+api.add_resource(supply_items,'/api/v2/supply_items')
 api.add_resource(add_brand,'/api/v2/add_brand')
 api.add_resource(add_items,'/api/v2/add_items')
 api.add_resource(add_supply,'/api/v2/add_supply')
