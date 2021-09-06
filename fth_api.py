@@ -5306,6 +5306,218 @@ class predict_autopay_day(Resource):
 # ---------- ADMIN ENDPOINTS ----------------#
 # admin endpoints start from here            #
 #--------------------------------------------#
+#  -- ITEMS ADMIN RELATED ENDPOINTS    -----------------------------------------
+
+class foodbank_items(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    s.*,
+                    brand_name,
+                    item_name
+                    FROM sn.supply2 s
+                    LEFT JOIN sn.brand
+                        ON brand_uid = sup_brand_uid
+                    LEFT JOIN sn.items
+                        ON item_uid = sup_item_uid
+                    ORDER BY item_name;
+                    
+                    """
+
+            items = execute(query, 'get', conn)
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class add_brand(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            data = request.get_json(force=True)
+            print(data)
+            query = ["call fth.new_brand_uid();"]
+            brandID = execute(query[0], 'get', conn)
+            brandUID = brandID['result'][0]['new_id']
+
+            query = """
+                INSERT INTO fth.brand
+                SET 
+                brand_uid = \'""" + brandUID + """\', 
+                brand_name = \'""" + data['brand_name'] + """\',
+                brand_contact_first_name = \'""" + data['brand_contact_first_name'] + """\', 
+                brand_contact_last_name = \'""" + data['brand_contact_last_name'] + """\',
+                brand_phone_num1 = \'""" + data['brand_phone_num1'] + """\',
+                brand_phone_num2 = \'""" + data['brand_phone_num2'] + """\', 
+                brand_address = \'""" + data['brand_address'] + """\', 
+                brand_unit = \'""" + data['brand_unit'] + """\',
+                brand_city = \'""" + data['brand_city'] + """\',
+                brand_state = \'""" + data['brand_state'] + """\', 
+                brand_zip = \'""" + data['brand_zip'] + """\';
+                
+                    """
+            print(query)
+            
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+class add_items(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            data = request.get_json(force=True)
+            print(data)
+            
+            item_tags = str(data['item_tags'])
+            item_tags = item_tags.replace("'", "\"") 
+            print(item_tags)
+
+            query = ["call fth.new_items_uid();"]
+            itemsID = execute(query[0], 'get', conn)
+            itemsUID = itemsID['result'][0]['new_id']
+
+
+            query = """
+                INSERT INTO fth.items
+                SET 
+                item_uid = \'""" + itemsUID + """\', 
+                item_name = \'""" + data['item_name'] + """\',
+                item_desc = \'""" + data['item_desc'] + """\', 
+                item_type = \'""" + data['item_type'] + """\',
+                item_tags = \'""" + item_tags + """\';
+                    """
+            print(query)
+            
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+class add_supply(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            data = request.get_json(force=True)
+            
+            query = ["call fth.new_supply2_uid();"]
+            supplyID = execute(query[0], 'get', conn)
+            supplyUID = supplyID['result'][0]['new_id']
+
+            TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            print(TimeStamp)
+            query = """
+                INSERT INTO fth.supply2
+                SET 
+                supply_uid = \'""" + supplyUID + """\', 
+                sup_created_at = \'""" + TimeStamp + """\',
+                sup_brand_uid = \'""" + data['sup_brand_uid'] + """\',
+                sup_item_uid = \'""" + data['sup_item_uid'] + """\', 
+                sup_desc = \'""" + data['sup_desc'] + """\',
+                sup_type = \'""" + data['sup_type'] + """\',
+                sup_num = \'""" + data['sup_num'] + """\', 
+                sup_measure = \'""" + data['sup_measure'] + """\',
+                sup_unit = \'""" + data['sup_unit'] + """\',
+                detailed_num = \'""" + data['detailed_num'] + """\', 
+                detailed_measure = \'""" +  data['detailed_measure'] + """\',
+                detailed_unit = \'""" + data['detailed_unit'] + """\',
+                item_photo = \'""" + data['item_photo'] + """\', 
+                package_upc = \'""" + data['package_upc'] + """\';
+                    """
+            
+            print(query)
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+
+#  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
+
+class foodbank_donations(Resource):
+    def get(self, business_uid):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    receive_uid,
+                    s.*,
+                    brand_name,
+                    item_name,
+                    donation_type,
+                    qty_received,
+                    receive_date,
+                    available_date,
+                    exp_date
+                    FROM sn.supply2 s
+                    LEFT JOIN sn.brand
+                        ON brand_uid = sup_brand_uid
+                    LEFT JOIN sn.items
+                        ON item_uid = sup_item_uid
+                    LEFT JOIN sn.receive
+                        ON receive_supply_uid = supply_uid
+                    WHERE receive_supply_uid = supply_uid AND receive_business_uid = \'""" + business_uid + """\'
+                    ORDER BY item_name;
+                    
+                    """
+
+            items = execute(query, 'get', conn)
+            response['message'] = 'Details fetch successful'
+            response['result'] = items
+            return response, 200
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class add_donation(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            data = request.get_json(force=True)
+            
+            query = ["call fth.new_receive_uid();"]
+            receiveID = execute(query[0], 'get', conn)
+            receiveUID = receiveID['result'][0]['new_id']
+
+            TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            print(TimeStamp)
+            query = """
+                INSERT INTO fth.receive
+                SET 
+                receive_uid = \'""" + receiveUID + """\', 
+                receive_supply_uid = \'""" + data['receive_supply_uid'] + """\',
+                receive_business_uid = \'""" + data['receive_business_uid'] + """\', 
+                donation_type = \'""" + data['donation_type'] + """\',
+                qty_received = \'""" + data['qty_received'] + """\',
+                receive_date = \'""" + data['receive_date'] + """\',
+                available_date = \'""" + data['available_date'] + """\', 
+                exp_date = \'""" + data['exp_date'] + """\';
+                    """
+            
+            print(query)
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+
+
+
 
 #  -- FOOD BANKS ADMIN RELATED ENDPOINTS    -----------------------------------------
 class Businesses(Resource):
@@ -14962,6 +15174,17 @@ api.add_resource(Create_Group, '/api/v2/Create_Group')
 api.add_resource(Send_Notification, '/api/v2/Send_Notification/<string:role>')
 api.add_resource(update_guid_notification,
                  '/api/v2/update_guid_notification/<string:role>,<string:action>')
+
+#**********************************************************************************#
+#  -- ADMIN RELATED ENDPOINTS    -----------------------------------------
+#---ITEMS ADMIN ---#
+api.add_resource(foodbank_items,'/api/v2/foodbank_items')
+api.add_resource(add_brand,'/api/v2/add_brand')
+api.add_resource(add_items,'/api/v2/add_items')
+api.add_resource(add_supply,'/api/v2/add_supply')
+#  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
+api.add_resource(foodbank_donations,'/api/v2/foodbank_donations/<string:business_uid>')
+api.add_resource(add_donation,'/api/v2/add_donation')
 #**********************************************************************************#
 #---customer related endpoints ---#
 
