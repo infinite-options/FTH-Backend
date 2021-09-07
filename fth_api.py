@@ -5316,7 +5316,8 @@ class supply_items(Resource):
                     SELECT -- *
                     s.*,
                     brand_name,
-                    item_name
+                    item_name,
+                    item_type
                     FROM fth.supply2 s
                     LEFT JOIN fth.brand
                         ON brand_uid = sup_brand_uid
@@ -5414,7 +5415,20 @@ class add_supply(Resource):
             supplyUID = supplyID['result'][0]['new_id']
 
             TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            print(TimeStamp)
+            
+            sup_type = "Package"
+            sup_unit = "Package"
+            detailed_measure= data['detailed_measure']
+
+            qry = """
+            SELECT 
+            type 
+            FROM fth.conversion_units
+            WHERE recipe_unit = \'""" + detailed_measure + """\';"""
+
+            items = execute(qry, 'get', conn)
+            detailed_unit=items['result'][0]['type']
+           
             query = """
                 INSERT INTO fth.supply2
                 SET 
@@ -5423,18 +5437,18 @@ class add_supply(Resource):
                 sup_brand_uid = \'""" + data['sup_brand_uid'] + """\',
                 sup_item_uid = \'""" + data['sup_item_uid'] + """\', 
                 sup_desc = \'""" + data['sup_desc'] + """\',
-                sup_type = \'""" + data['sup_type'] + """\',
+                sup_type = \'""" + sup_type + """\',
                 sup_num = \'""" + data['sup_num'] + """\', 
                 sup_measure = \'""" + data['sup_measure'] + """\',
-                sup_unit = \'""" + data['sup_unit'] + """\',
+                sup_unit = \'""" + sup_unit + """\',
                 detailed_num = \'""" + data['detailed_num'] + """\', 
-                detailed_measure = \'""" +  data['detailed_measure'] + """\',
-                detailed_unit = \'""" + data['detailed_unit'] + """\',
+                detailed_measure = \'""" +  detailed_measure + """\',
+                detailed_unit = \'""" + detailed_unit + """\',
                 item_photo = \'""" + data['item_photo'] + """\', 
                 package_upc = \'""" + data['package_upc'] + """\';
                     """
             
-            print(query)
+            
             items = execute(query, 'post', conn)
             return items
 
@@ -5849,7 +5863,7 @@ class add_business_to_zone(Resource):
             for arr_bus in items['result']:
                 arr_zone = arr_bus['zone_uid']
                 arr = json.loads(arr_bus['z_businesses'])
-
+                print('arr',arr)
                 # add business to zone
                 if arr_zone in zone_uids:
                     # if business already there then continue
