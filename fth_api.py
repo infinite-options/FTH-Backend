@@ -5352,6 +5352,41 @@ class get_units_list(Resource):
         finally:
             disconnect(conn)
 
+class get_tags_list(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    tags
+                    FROM fth.item_tags;  
+                    """
+
+            items = execute(query, 'get', conn)
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class get_types_list(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    types
+                    FROM fth.item_types
+                    ORDER BY types;  
+                    """
+
+            items = execute(query, 'get', conn)
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 class add_brand(Resource):
     def post(self):
         try:
@@ -5496,6 +5531,59 @@ class add_supply(Resource):
         except:
             raise BadRequest('Request failed, please try again later.')
 
+class add_tags(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            
+            tags = request.form.get('tags')
+
+            query = ["call fth.new_tags_uid();"]
+            tagsID = execute(query[0], 'get', conn)
+            tagsUID = tagsID['result'][0]['new_id']
+
+
+            query = """
+                INSERT INTO fth.item_tags
+                SET 
+                item_tag_id = \'""" + tagsUID + """\', 
+                tags = \'""" + tags + """\';
+                    """
+            print(query)
+            
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+class add_types(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            
+            types = request.form.get('types')
+
+            query = ["call fth.new_types_uid();"]
+            typesID = execute(query[0], 'get', conn)
+            typesUID = typesID['result'][0]['new_id']
+
+
+            query = """
+                INSERT INTO fth.item_types
+                SET 
+                item_type_id = \'""" + typesUID + """\', 
+                types = \'""" + types + """\';
+                    """
+            print(query)
+            
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
 
 #  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
 
@@ -5537,6 +5625,7 @@ class foodbank_donations(Resource):
         finally:
             disconnect(conn)
 
+#  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
 class add_donation(Resource):
     def post(self):
         try:
@@ -5573,8 +5662,6 @@ class add_donation(Resource):
 
         except:
             raise BadRequest('Request failed, please try again later.')
-
-
 
 
 
@@ -15241,8 +15328,11 @@ api.add_resource(supply_items,'/api/v2/supply_items')
 api.add_resource(add_brand,'/api/v2/add_brand')
 api.add_resource(add_items,'/api/v2/add_items')
 api.add_resource(add_supply,'/api/v2/add_supply')
+api.add_resource(add_tags,'/api/v2/add_tags')
+api.add_resource(add_types,'/api/v2/add_types')
 api.add_resource(get_units_list,'/api/v2/get_units_list')
-
+api.add_resource(get_tags_list,'/api/v2/get_tags_list')
+api.add_resource(get_types_list,'/api/v2/get_types_list')
 #  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
 api.add_resource(foodbank_donations,'/api/v2/foodbank_donations/<string:business_uid>')
 api.add_resource(add_donation,'/api/v2/add_donation')
