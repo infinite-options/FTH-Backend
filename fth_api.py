@@ -5334,13 +5334,43 @@ class supply_items(Resource):
         finally:
             disconnect(conn)
 
+class get_units_list(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    recipe_unit,type
+                    FROM fth.conversion_units
+                    ORDER BY type;   
+                    """
+
+            items = execute(query, 'get', conn)
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 class add_brand(Resource):
     def post(self):
         try:
             conn = connect()
             print("in")
-            data = request.get_json(force=True)
-            print(data)
+            
+        
+            brand_name = request.form.get('brand_name')
+            brand_contact_first_name = request.form.get('brand_contact_first_name') 
+            brand_contact_last_name = request.form.get('brand_contact_last_name')
+            brand_phone_num1 = request.form.get('brand_phone_num1')
+            brand_phone_num2 = request.form.get('brand_phone_num2')
+            brand_address = request.form.get('brand_address')
+            brand_unit = request.form.get('brand_unit')
+            brand_city = request.form.get('brand_city')
+            brand_state = request.form.get('brand_state')
+            brand_zip = request.form.get('brand_zip')
+
+
             query = ["call fth.new_brand_uid();"]
             brandID = execute(query[0], 'get', conn)
             brandUID = brandID['result'][0]['new_id']
@@ -5349,16 +5379,16 @@ class add_brand(Resource):
                 INSERT INTO fth.brand
                 SET 
                 brand_uid = \'""" + brandUID + """\', 
-                brand_name = \'""" + data['brand_name'] + """\',
-                brand_contact_first_name = \'""" + data['brand_contact_first_name'] + """\', 
-                brand_contact_last_name = \'""" + data['brand_contact_last_name'] + """\',
-                brand_phone_num1 = \'""" + data['brand_phone_num1'] + """\',
-                brand_phone_num2 = \'""" + data['brand_phone_num2'] + """\', 
-                brand_address = \'""" + data['brand_address'] + """\', 
-                brand_unit = \'""" + data['brand_unit'] + """\',
-                brand_city = \'""" + data['brand_city'] + """\',
-                brand_state = \'""" + data['brand_state'] + """\', 
-                brand_zip = \'""" + data['brand_zip'] + """\';
+                brand_name = \'""" + brand_name + """\',
+                brand_contact_first_name = \'""" + brand_contact_first_name + """\', 
+                brand_contact_last_name = \'""" + brand_contact_last_name + """\',
+                brand_phone_num1 = \'""" + brand_phone_num1 + """\',
+                brand_phone_num2 = \'""" + brand_phone_num2 + """\', 
+                brand_address = \'""" + brand_address + """\', 
+                brand_unit = \'""" + brand_unit + """\',
+                brand_city = \'""" + brand_city + """\',
+                brand_state = \'""" + brand_state + """\', 
+                brand_zip = \'""" + brand_zip + """\';
                 
                     """
             print(query)
@@ -5374,10 +5404,12 @@ class add_items(Resource):
         try:
             conn = connect()
             print("in")
-            data = request.get_json(force=True)
-            print(data)
-            
-            item_tags = str(data['item_tags'])
+            item_name = request.form.get('item_name')
+            item_desc = request.form.get('item_desc') 
+            item_type = request.form.get('item_type')
+            item_tags = request.form.get('item_tags')
+
+            item_tags = str(item_tags)
             item_tags = item_tags.replace("'", "\"") 
             print(item_tags)
 
@@ -5390,9 +5422,9 @@ class add_items(Resource):
                 INSERT INTO fth.items
                 SET 
                 item_uid = \'""" + itemsUID + """\', 
-                item_name = \'""" + data['item_name'] + """\',
-                item_desc = \'""" + data['item_desc'] + """\', 
-                item_type = \'""" + data['item_type'] + """\',
+                item_name = \'""" + item_name + """\',
+                item_desc = \'""" + item_desc + """\', 
+                item_type = \'""" + item_type + """\',
                 item_tags = \'""" + item_tags + """\';
                     """
             print(query)
@@ -5408,17 +5440,26 @@ class add_supply(Resource):
         try:
             conn = connect()
             print("in")
-            data = request.get_json(force=True)
+            sup_brand_uid = request.form.get('sup_brand_uid')
+            sup_item_uid = request.form.get('sup_item_uid')
+            sup_desc = request.form.get('sup_desc')
+            sup_type = "Package"
+            sup_num = request.form.get('sup_num')
+            sup_measure = request.form.get('sup_measure')
+            sup_unit = "Package"
+            detailed_num = request.form.get('detailed_num')
+            detailed_measure = request.form.get('detailed_measure')
+            item_photo = request.files.get('item_photo') if request.files.get(
+                'item_photo') is not None else 'NULL'
+            package_upc = request.form.get('package_upc')
             
             query = ["call fth.new_supply2_uid();"]
             supplyID = execute(query[0], 'get', conn)
             supplyUID = supplyID['result'][0]['new_id']
 
             TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            
-            sup_type = "Package"
-            sup_unit = "Package"
-            detailed_measure= data['detailed_measure']
+            key = "supply/" + str(supplyUID) + "_" + TimeStamp
+            item_photo_url = helper_upload_meal_img(item_photo, key)
 
             qry = """
             SELECT 
@@ -5434,18 +5475,18 @@ class add_supply(Resource):
                 SET 
                 supply_uid = \'""" + supplyUID + """\', 
                 sup_created_at = \'""" + TimeStamp + """\',
-                sup_brand_uid = \'""" + data['sup_brand_uid'] + """\',
-                sup_item_uid = \'""" + data['sup_item_uid'] + """\', 
-                sup_desc = \'""" + data['sup_desc'] + """\',
+                sup_brand_uid = \'""" + sup_brand_uid + """\',
+                sup_item_uid = \'""" + sup_item_uid + """\', 
+                sup_desc = \'""" + sup_desc + """\',
                 sup_type = \'""" + sup_type + """\',
-                sup_num = \'""" + data['sup_num'] + """\', 
-                sup_measure = \'""" + data['sup_measure'] + """\',
+                sup_num = \'""" + sup_num + """\', 
+                sup_measure = \'""" + sup_measure + """\',
                 sup_unit = \'""" + sup_unit + """\',
-                detailed_num = \'""" + data['detailed_num'] + """\', 
+                detailed_num = \'""" + detailed_num + """\', 
                 detailed_measure = \'""" +  detailed_measure + """\',
                 detailed_unit = \'""" + detailed_unit + """\',
-                item_photo = \'""" + data['item_photo'] + """\', 
-                package_upc = \'""" + data['package_upc'] + """\';
+                item_photo = \'""" + item_photo_url + """\', 
+                package_upc = \'""" + package_upc + """\';
                     """
             
             
@@ -5501,25 +5542,29 @@ class add_donation(Resource):
         try:
             conn = connect()
             print("in")
-            data = request.get_json(force=True)
+            receive_supply_uid = request.form.get('receive_supply_uid')
+            receive_business_uid = request.form.get('receive_business_uid')
+            donation_type = request.form.get('donation_type')
+            qty_received = request.form.get('qty_received')
+            receive_date = request.form.get('receive_date')
+            available_date = request.form.get('available_date')
+            exp_date = request.form.get('exp_date')
             
             query = ["call fth.new_receive_uid();"]
             receiveID = execute(query[0], 'get', conn)
             receiveUID = receiveID['result'][0]['new_id']
 
-            TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            print(TimeStamp)
             query = """
                 INSERT INTO fth.receive
                 SET 
                 receive_uid = \'""" + receiveUID + """\', 
-                receive_supply_uid = \'""" + data['receive_supply_uid'] + """\',
-                receive_business_uid = \'""" + data['receive_business_uid'] + """\', 
-                donation_type = \'""" + data['donation_type'] + """\',
-                qty_received = \'""" + data['qty_received'] + """\',
-                receive_date = \'""" + data['receive_date'] + """\',
-                available_date = \'""" + data['available_date'] + """\', 
-                exp_date = \'""" + data['exp_date'] + """\';
+                receive_supply_uid = \'""" + receive_supply_uid + """\',
+                receive_business_uid = \'""" + receive_business_uid + """\', 
+                donation_type = \'""" + donation_type + """\',
+                qty_received = \'""" + qty_received + """\',
+                receive_date = \'""" + receive_date + """\',
+                available_date = \'""" + available_date + """\', 
+                exp_date = \'""" + exp_date + """\';
                     """
             
             print(query)
@@ -15196,6 +15241,8 @@ api.add_resource(supply_items,'/api/v2/supply_items')
 api.add_resource(add_brand,'/api/v2/add_brand')
 api.add_resource(add_items,'/api/v2/add_items')
 api.add_resource(add_supply,'/api/v2/add_supply')
+api.add_resource(get_units_list,'/api/v2/get_units_list')
+
 #  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
 api.add_resource(foodbank_donations,'/api/v2/foodbank_donations/<string:business_uid>')
 api.add_resource(add_donation,'/api/v2/add_donation')
