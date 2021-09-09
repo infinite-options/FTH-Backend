@@ -5387,6 +5387,62 @@ class get_types_list(Resource):
         finally:
             disconnect(conn)
 
+class get_brands_list(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    brand_name
+                    FROM fth.brand
+                    ORDER BY brand_name;  
+                    """
+
+            items = execute(query, 'get', conn)
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class get_items_list(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    item_name
+                    FROM fth.items
+                    ORDER BY item_name;  
+                    """
+
+            items = execute(query, 'get', conn)
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+            
+        finally:
+            disconnect(conn)
+
+class get_non_specific_unit_list(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    ns_units_name
+                    FROM fth.non_specific_units
+                    ORDER BY ns_units_name;  
+                    """
+
+            items = execute(query, 'get', conn)
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+            
+        finally:
+            disconnect(conn)
+
 class add_brand(Resource):
     def post(self):
         try:
@@ -5576,6 +5632,33 @@ class add_types(Resource):
                 SET 
                 item_type_id = \'""" + typesUID + """\', 
                 types = \'""" + types + """\';
+                    """
+            print(query)
+            
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+class add_non_specific_unit(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            
+            ns_units_name = request.form.get('ns_units_name')
+
+            query = ["call fth.new_non_specific_unit_uid();"]
+            nsUnitsID = execute(query[0], 'get', conn)
+            nsUnitsUID = nsUnitsID['result'][0]['new_id']
+
+
+            query = """
+                INSERT INTO fth.non_specific_units
+                SET 
+                ns_units_uid = \'""" + nsUnitsUID + """\', 
+                ns_units_name = \'""" + ns_units_name + """\';
                     """
             print(query)
             
@@ -15330,9 +15413,15 @@ api.add_resource(add_items,'/api/v2/add_items')
 api.add_resource(add_supply,'/api/v2/add_supply')
 api.add_resource(add_tags,'/api/v2/add_tags')
 api.add_resource(add_types,'/api/v2/add_types')
+api.add_resource(add_non_specific_unit,'/api/v2/add_non_specific_unit')
+
 api.add_resource(get_units_list,'/api/v2/get_units_list')
 api.add_resource(get_tags_list,'/api/v2/get_tags_list')
 api.add_resource(get_types_list,'/api/v2/get_types_list')
+api.add_resource(get_brands_list,'/api/v2/get_brands_list')
+api.add_resource(get_items_list,'/api/v2/get_items_list')
+api.add_resource(get_non_specific_unit_list,'/api/v2/get_non_specific_unit_list')
+
 #  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
 api.add_resource(foodbank_donations,'/api/v2/foodbank_donations/<string:business_uid>')
 api.add_resource(add_donation,'/api/v2/add_donation')
