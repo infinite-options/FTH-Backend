@@ -3877,7 +3877,7 @@ class order_actions(Resource):
 # uses pur_business_uid
 
 
-class purchase_Data_SF(Resource):
+class checkout_SN(Resource):
     def post(self):
         response = {}
         items = {}
@@ -15498,7 +15498,7 @@ api.add_resource(
 #api.add_resource(history, '/api/v2/history/<string:email>')
 
 # seems to be the same as checkout
-api.add_resource(purchase_Data_SF, '/api/v2/purchase_Data_SF')
+api.add_resource(checkout_SN, '/api/v2/checkout_SN')
 
 # api.add_resource(addItems, '/api/v2/addItems/<string:action>') #check if theres something similar
 
