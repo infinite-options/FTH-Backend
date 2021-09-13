@@ -5708,7 +5708,7 @@ class foodbank_donations(Resource):
         finally:
             disconnect(conn)
 
-#  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
+
 class add_donation(Resource):
     def post(self):
         try:
@@ -5746,7 +5746,52 @@ class add_donation(Resource):
         except:
             raise BadRequest('Request failed, please try again later.')
 
+#  -- INVENTORY ADMIN RELATED ENDPOINTS    -----------------------------------------
 
+class foodbank_inventory(Resource):
+    def get(self, business_uid):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    measure_uid, 
+                    dist_options_uid, 
+                    receive_uid,
+                    measure_supply_uid,
+                    sup_desc, 
+                    item_photo, 
+                    item_type, 
+                    distribution_default, 
+                    distribution_status, 
+                    qty_received,
+                    dist_desc, 
+                    dist_unit, 
+                    dist_num, 
+                    dist_measure, 
+                    distribution_qty
+                FROM fth.measure
+                LEFT JOIN fth.distribution_options d
+                    ON dist_options_uid = measure_dist_uid
+                LEFT JOIN fth.supply2
+                    ON supply_uid = measure_supply_uid
+                LEFT JOIN fth.items
+                    ON item_uid =sup_item_uid
+                LEFT JOIN fth.receive
+                    ON receive_uid= measure_receive_uid
+                WHERE receive_business_uid = measure_business_uid AND measure_business_uid=\'""" + business_uid + """\';
+                    
+                    """
+
+            items = execute(query, 'get', conn)
+            response['message'] = 'Details fetch successful'
+            response['result'] = items
+            return response, 200
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
 
 #  -- FOOD BANKS ADMIN RELATED ENDPOINTS    -----------------------------------------
 class Businesses(Resource):
@@ -15424,6 +15469,8 @@ api.add_resource(get_non_specific_unit_list,'/api/v2/get_non_specific_unit_list'
 
 #  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
 api.add_resource(foodbank_donations,'/api/v2/foodbank_donations/<string:business_uid>')
+api.add_resource(foodbank_inventory,'/api/v2/foodbank_inventory/<string:business_uid>')
+
 api.add_resource(add_donation,'/api/v2/add_donation')
 #**********************************************************************************#
 #---customer related endpoints ---#
