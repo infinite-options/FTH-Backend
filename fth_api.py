@@ -5551,7 +5551,6 @@ class add_supply(Resource):
             TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             key = "supply/" + str(supplyUID) + "_" + TimeStamp
             item_photo_url = helper_upload_meal_img(item_photo, key)
-
             qry = """
             SELECT 
             type 
@@ -5792,6 +5791,183 @@ class foodbank_inventory(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
+
+class foodbank_measure(Resource):
+    def get(self, supply_uid):
+        response = {}
+        items = {}
+        try:
+            conn = connect()
+            query = """
+                    SELECT -- *
+                    dist_supply_uid,
+                    dist_options_uid,
+                    measure_receive_uid,
+                    dist_item_photo,
+                    dist_num,
+                    dist_measure,
+                    dist_unit,
+                    dist_desc,
+                    distribution_default
+                    FROM fth.distribution_options
+                    LEFT JOIN fth.supply2
+                        ON supply_uid = dist_supply_uid
+                    LEFT JOIN fth.measure
+                        ON measure_supply_uid = dist_supply_uid
+                    WHERE supply_uid=\'""" + supply_uid + """\' AND dist_options_uid = measure_dist_uid;
+                    """
+
+            items = execute(query, 'get', conn)
+            response['message'] = 'Details fetch successful'
+            response['result'] = items
+            return response, 200
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class add_distOptions(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            dist_supply_uid = request.form.get('dist_supply_uid')
+            dist_desc = request.form.get('dist_desc')
+            dist_type = request.form.get('dist_type')
+            dist_num = request.form.get('dist_num')
+            dist_measure = request.form.get('dist_measure')
+            dist_unit = request.form.get('dist_unit')
+            dist_item_photo = request.files.get('dist_item_photo') if request.files.get(
+                'dist_item_photo') is not None else 'NULL'
+            
+            query = ["call fth.new_distribution_options_uid();"]
+            distOptionsID = execute(query[0], 'get', conn)
+            distOptionsUID = distOptionsID['result'][0]['new_id']
+            print(distOptionsUID)
+
+            TimeStamp_test = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+            key = "supply/" + str(distOptionsUID) + "_" + TimeStamp_test
+            dist_item_photo_url = helper_upload_meal_img(dist_item_photo, key)
+            print(dist_item_photo_url)
+            
+            qry = """
+                INSERT INTO fth.distribution_options
+                SET 
+                dist_options_uid = \'""" + distOptionsUID + """\',
+                dist_supply_uid = \'""" + dist_supply_uid + """\',
+                dist_desc = \'""" + dist_desc + """\',
+                dist_type = \'""" + dist_type + """\',
+                dist_num = \'""" + dist_num + """\',
+                dist_measure = \'""" + dist_measure + """\',
+                dist_unit = \'""" + dist_unit + """\',
+                dist_item_photo = \'""" + dist_item_photo_url + """\';
+                    """
+            
+            
+            items = execute(qry, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+class add_measure(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            measure_supply_uid = request.form.get('measure_supply_uid')
+            measure_business_uid = request.form.get('measure_business_uid')
+            measure_dist_uid = request.form.get('measure_dist_uid')
+            measure_receive_uid = request.form.get('measure_receive_uid')
+            distribution_default = request.form.get('distribution_default')
+            distribution_status = request.form.get('distribution_status')
+           
+            qry= """SELECT -- *
+                    qty_received,
+                    sup_num,
+                    sup_measure,
+                    detailed_num,
+                    detailed_measure
+                    FROM fth.receive
+                    LEFT JOIN fth.supply2
+                    ON supply_uid = receive_supply_uid 
+                    WHERE receive_uid = \'""" + measure_receive_uid + """\';
+                    """
+
+            items = execute(qry, 'get', conn)
+            qty_received = int(items['result'][0]['qty_received'])
+            sup_num = int(items['result'][0]['sup_num'])
+            sup_measure = items['result'][0]['sup_measure']
+            detailed_num = int(items['result'][0]['detailed_num'])
+            print(int(qty_received))
+            print(sup_num)
+
+            qry= """SELECT -- *
+                    dist_type,
+                    dist_num,
+                    dist_measure
+                    FROM fth.distribution_options
+                    LEFT JOIN fth.supply2
+                    ON supply_uid = dist_supply_uid 
+                    WHERE dist_options_uid = \'""" + measure_dist_uid + """\';
+                    """
+
+            items = execute(qry, 'get', conn)
+            dist_num = int(items['result'][0]['dist_num'])
+            dist_measure = items['result'][0]['dist_measure']
+            print(dist_num)
+
+            print('before if')
+            if sup_measure == dist_measure:
+                print('in 1')
+                distribution_qty = qty_received 
+                print(distribution_qty)
+            elif sup_measure != dist_measure and dist_measure !='bag' and dist_num == 1:
+                print('in 2')
+                distribution_qty = qty_received * sup_num * detailed_num * dist_num
+                print(distribution_qty)
+            elif sup_measure != dist_measure and dist_measure !='bag' and dist_num != 1:
+                print('in 3')
+                distribution_qty = int((qty_received * sup_num * detailed_num )/ dist_num)
+                print(distribution_qty)
+            else:
+                print('in 4')
+                distribution_qty = qty_received * sup_num * dist_num
+                print(distribution_qty)
+            print('after if')
+
+            query = ["call fth.new_measure_uid();"]
+            measureID = execute(query[0], 'get', conn)
+            measureUID = measureID['result'][0]['new_id']
+            
+            print(measure_supply_uid)
+            print(measure_business_uid)
+            print(measure_dist_uid)
+            print(measure_receive_uid)
+            print(distribution_default)
+            print(distribution_status)
+            print(measureUID)
+            print(distribution_qty)
+            qry = """
+                INSERT INTO fth.measure
+                SET 
+                measure_uid = \'""" + measureUID + """\',
+                measure_supply_uid = \'""" + measure_supply_uid + """\',
+                measure_business_uid = \'""" + measure_business_uid + """\',
+                measure_dist_uid = \'""" + measure_dist_uid + """\',
+                measure_receive_uid = \'""" + measure_receive_uid + """\',
+                distribution_default = \'""" + distribution_default + """\',
+                distribution_status = \'""" + distribution_status + """\',
+                distribution_qty = \'""" + str(distribution_qty) + """\';
+                    """
+            
+            
+            items = execute(qry, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
 
 #  -- FOOD BANKS ADMIN RELATED ENDPOINTS    -----------------------------------------
 class Businesses(Resource):
@@ -15469,9 +15645,15 @@ api.add_resource(get_non_specific_unit_list,'/api/v2/get_non_specific_unit_list'
 
 #  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
 api.add_resource(foodbank_donations,'/api/v2/foodbank_donations/<string:business_uid>')
-api.add_resource(foodbank_inventory,'/api/v2/foodbank_inventory/<string:business_uid>')
-
 api.add_resource(add_donation,'/api/v2/add_donation')
+
+#  -- INVENTORY ADMIN RELATED ENDPOINTS    -----------------------------------------
+
+api.add_resource(foodbank_inventory,'/api/v2/foodbank_inventory/<string:business_uid>')
+api.add_resource(foodbank_measure,'/api/v2/foodbank_measure/<string:supply_uid>')
+api.add_resource(add_distOptions,'/api/v2/add_distOptions')
+api.add_resource(add_measure,'/api/v2/add_measure')
+
 #**********************************************************************************#
 #---customer related endpoints ---#
 
