@@ -5393,6 +5393,7 @@ class get_brands_list(Resource):
             conn = connect()
             query = """
                     SELECT -- *
+                    brand_uid,
                     brand_name
                     FROM fth.brand
                     ORDER BY brand_name;  
@@ -5411,6 +5412,7 @@ class get_items_list(Resource):
             conn = connect()
             query = """
                     SELECT -- *
+                    item_uid,
                     item_name
                     FROM fth.items
                     ORDER BY item_name;  
