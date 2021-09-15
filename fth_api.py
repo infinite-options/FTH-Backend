@@ -2068,12 +2068,16 @@ class getItems(Resource):
                 print("in if")
                 query = """
                         SELECT * 
-                        FROM (SELECT * FROM fth.packages 
-                        LEFT JOIN fth.fth_items
-                        ON item_uid = package_item_uid
-                        LEFT JOIN fth.supply
-                        ON sup_package_uid = package_uid) as tt
-                        WHERE item_status = 'Active'
+                        FROM (SELECT * FROM fth.receive
+                        LEFT JOIN fth.supply2
+                        ON supply_uid = receive_supply_uid
+                        LEFT JOIN fth.items
+                        ON item_uid =sup_item_uid
+                        LEFT JOIN fth.measure
+                        ON measure_receive_uid = receive_uid
+                        LEFT JOIN fth.distribution_options
+                        ON dist_options_uid = measure_dist_uid) as tt
+                        WHERE distribution_default = 'TRUE' AND distribution_status='TRUE'
                         ORDER BY item_name;
                         """
             elif(len(types) == 0 and len(ids) !=0):
@@ -2081,13 +2085,16 @@ class getItems(Resource):
                 ids.append('')
                 query = """
                         SELECT * 
-                        FROM (SELECT * FROM fth.packages 
-                        LEFT JOIN fth.fth_items
-                        ON item_uid = package_item_uid
-                        LEFT JOIN fth.supply
-                        ON sup_package_uid = package_uid) as tt
-                        WHERE itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
-                        GROUP BY item_name
+                        FROM (SELECT * FROM fth.receive
+                        LEFT JOIN fth.supply2
+                        ON supply_uid = receive_supply_uid
+                        LEFT JOIN fth.items
+                        ON item_uid =sup_item_uid
+                        LEFT JOIN fth.measure
+                        ON measure_receive_uid = receive_uid
+                        LEFT JOIN fth.distribution_options
+                        ON dist_options_uid = measure_dist_uid) as tt
+                        WHERE distribution_default = 'TRUE' AND distribution_status='TRUE'AND receive_business_uid IN """ + str(tuple(ids)) + """
                         ORDER BY item_name;
                         """
             elif(len(ids) == 0 and len(types) !=0):
@@ -2095,26 +2102,34 @@ class getItems(Resource):
                 types.append('')
                 query = """
                         SELECT * 
-                        FROM (SELECT * FROM fth.packages 
-                        LEFT JOIN fth.fth_items
-                        ON item_uid = package_item_uid
-                        LEFT JOIN fth.supply
-                        ON sup_package_uid = package_uid) as tt
-                        WHERE item_type IN """ + str(tuple(types)) + """ AND item_status = 'Active'
-                        GROUP BY item_name
+                        FROM (SELECT * FROM fth.receive
+                        LEFT JOIN fth.supply2
+                        ON supply_uid = receive_supply_uid
+                        LEFT JOIN fth.items
+                        ON item_uid =sup_item_uid
+                        LEFT JOIN fth.measure
+                        ON measure_receive_uid = receive_uid
+                        LEFT JOIN fth.distribution_options
+                        ON dist_options_uid = measure_dist_uid) as tt
+                        WHERE item_type IN """ + str(tuple(types)) + """ AND distribution_default = 'TRUE' AND distribution_status='TRUE'
                         ORDER BY item_name;
                         """
             else:
                 print("in else")
+                types.append('')
+                ids.append('')
                 query = """
                         SELECT * 
-                        FROM (SELECT * FROM fth.packages 
-                        LEFT JOIN fth.fth_items
-                        ON item_uid = package_item_uid
-                        LEFT JOIN fth.supply
-                        ON sup_package_uid = package_uid) as tt
-                        WHERE item_type IN """ + str(tuple(types)) + """ AND itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
-                        GROUP BY item_name
+                        FROM (SELECT * FROM fth.receive
+                        LEFT JOIN fth.supply2
+                        ON supply_uid = receive_supply_uid
+                        LEFT JOIN fth.items
+                        ON item_uid =sup_item_uid
+                        LEFT JOIN fth.measure
+                        ON measure_receive_uid = receive_uid
+                        LEFT JOIN fth.distribution_options
+                        ON dist_options_uid = measure_dist_uid) as tt
+                        WHERE item_type IN """ + str(tuple(types)) + """ AND receive_business_uid IN """ + str(tuple(ids)) + """ AND distribution_default = 'TRUE' AND distribution_status='TRUE'
                         ORDER BY item_name;
                         """
             print("after query")           
@@ -5760,6 +5775,7 @@ class foodbank_inventory(Resource):
                     dist_options_uid, 
                     receive_uid,
                     measure_uid,
+                    supply_uid,
                     sup_desc, 
                     item_photo, 
                     item_type, 
@@ -5773,13 +5789,13 @@ class foodbank_inventory(Resource):
                     distribution_qty
                     FROM fth.receive
                     LEFT JOIN fth.supply2
-                        ON supply_uid = receive_supply_uid
+                    ON supply_uid = receive_supply_uid
                     LEFT JOIN fth.items
-                        ON item_uid =sup_item_uid
-                    LEFT JOIN fth.distribution_options
-                        ON dist_supply_uid = receive_supply_uid
+                    ON item_uid =sup_item_uid
                     LEFT JOIN fth.measure
-                        ON measure_dist_uid = dist_options_uid
+                    ON measure_receive_uid = receive_uid
+                    LEFT JOIN fth.distribution_options
+                    ON dist_options_uid = measure_dist_uid
                     WHERE receive_business_uid=\'""" + business_uid + """\';
                     
                     """
