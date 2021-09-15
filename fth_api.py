@@ -5757,31 +5757,30 @@ class foodbank_inventory(Resource):
             conn = connect()
             query = """
                     SELECT -- *
-                    measure_uid, 
                     dist_options_uid, 
                     receive_uid,
-                    measure_supply_uid,
+                    measure_uid,
                     sup_desc, 
                     item_photo, 
                     item_type, 
-                    distribution_default, 
-                    distribution_status, 
                     qty_received,
                     dist_desc, 
                     dist_unit, 
                     dist_num, 
-                    dist_measure, 
+                    dist_measure,
+                    distribution_default,
+                    distribution_status,
                     distribution_qty
-                FROM fth.measure
-                LEFT JOIN fth.distribution_options d
-                    ON dist_options_uid = measure_dist_uid
-                LEFT JOIN fth.supply2
-                    ON supply_uid = measure_supply_uid
-                LEFT JOIN fth.items
-                    ON item_uid =sup_item_uid
-                LEFT JOIN fth.receive
-                    ON receive_uid= measure_receive_uid
-                WHERE receive_business_uid = measure_business_uid AND measure_business_uid=\'""" + business_uid + """\';
+                    FROM fth.receive
+                    LEFT JOIN fth.supply2
+                        ON supply_uid = receive_supply_uid
+                    LEFT JOIN fth.items
+                        ON item_uid =sup_item_uid
+                    LEFT JOIN fth.distribution_options
+                        ON dist_supply_uid = receive_supply_uid
+                    LEFT JOIN fth.measure
+                        ON measure_dist_uid = dist_options_uid
+                    WHERE receive_business_uid=\'""" + business_uid + """\';
                     
                     """
 
