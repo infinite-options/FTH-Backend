@@ -864,7 +864,9 @@ class createAccount(Resource):
             latitude = data['latitude']
             longitude = data['longitude']
             referral = data['referral_source']
-            role = data['role']
+            #role = data['role']
+            role = str(data['role'])
+            role = role.replace("'", "\"") 
             cust_id = data['cust_id'] if data.get(
                 'cust_id') is not None else 'NULL'
 
@@ -6173,8 +6175,7 @@ class business_details_update(Resource):
                     business_delivery_hours.replace("'", "\"") + "'"
                 print(business_delivery_hours)
                 item_types = str(data['item_types'])
-                item_types = "'" + \
-                    item_types.replace("'", "\"") + "'"
+                item_types = "'" + item_types.replace("'", "\"") + "'"
                 print(item_types)
                 query = """
                                INSERT INTO fth.businesses
@@ -6235,8 +6236,7 @@ class business_details_update(Resource):
                 business_delivery_hours = "'" + business_delivery_hours.replace("'", "\"") + "'"
                 print(business_delivery_hours)
                 item_types = str(data['item_types'])
-                item_types = "'" + \
-                    item_types.replace("'", "\"") + "'"
+                item_types = "'" + item_types.replace("'", "\"") + "'"
                 print(item_types)
                 print('OUT')
                 query = """
