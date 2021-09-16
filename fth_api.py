@@ -865,8 +865,7 @@ class createAccount(Resource):
             longitude = data['longitude']
             referral = data['referral_source']
             #role = data['role']
-            role = str(data['role'])
-            role = role.replace("'", "\"") 
+            role = data['role']
             cust_id = data['cust_id'] if data.get(
                 'cust_id') is not None else 'NULL'
 
