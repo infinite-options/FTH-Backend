@@ -6134,10 +6134,6 @@ class business_details_update(Resource):
                             delivery,
                             reusable,
                             business_image,
-                            platform_fee,
-                            transaction_fee,
-                            revenue_sharing,
-                            profit_sharing,
                             business_status,
                             business_facebook_url,
                             business_instagram_url,
@@ -6145,9 +6141,9 @@ class business_details_update(Resource):
                             business_website_url,
                             limit_per_person,
                             item_types
-                        FROM fth.businesses WHERE business_uid = \'""" + \
-                    data['business_uid'] + """\';"""
+                        FROM fth.businesses WHERE business_uid = \'""" + data['business_uid'] + """\';"""
                 item = execute(query, 'get', conn)
+                print(query)
                 if item['code'] == 280:
                     if not item['result']:
                         item['message'] = 'No such business uid exists'
