@@ -5487,7 +5487,7 @@ class add_brand(Resource):
                 INSERT INTO fth.brand
                 SET 
                 brand_uid = \'""" + brandUID + """\', 
-                brand_name = \'""" + brand_name + """\',
+                brand_name = \'""" + str(brand_name).replace("'", "''") + """\',
                 brand_contact_first_name = \'""" + brand_contact_first_name + """\', 
                 brand_contact_last_name = \'""" + brand_contact_last_name + """\',
                 brand_phone_num1 = \'""" + brand_phone_num1 + """\',
@@ -5530,8 +5530,8 @@ class add_items(Resource):
                 INSERT INTO fth.items
                 SET 
                 item_uid = \'""" + itemsUID + """\', 
-                item_name = \'""" + item_name + """\',
-                item_desc = \'""" + item_desc + """\', 
+                item_name = \'""" + str(item_name).replace("'", "''") + """\',
+                item_desc = \'""" + str(item_desc).replace("'", "''") + """\', 
                 item_type = \'""" + item_type + """\',
                 item_tags = \'""" + item_tags + """\';
                     """
