@@ -866,6 +866,7 @@ class createAccount(Resource):
             referral = data['referral_source']
             #role = data['role']
             role = data['role']
+            cust_affiliation = data['affiliation']
             cust_id = data['cust_id'] if data.get(
                 'cust_id') is not None else 'NULL'
 
@@ -958,6 +959,7 @@ class createAccount(Resource):
                                     password_algorithm = \'''' + algorithm + '''\',
                                     referral_source = \'''' + referral + '''\',
                                     role = \'''' + role + '''\',
+                                    cust_affiliation = = \'''' + cust_affiliation + '''\',
                                     user_social_media = \'''' + user_social_signup + '''\',
                                     social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
                                     WHERE customer_uid = \'''' + cust_id + '''\';
@@ -1008,6 +1010,7 @@ class createAccount(Resource):
                                             password_algorithm = \'""" + algorithm + """\',
                                             referral_source = \'""" + referral + """\',
                                             role = \'""" + role + """\',
+                                            cust_affiliation = = \'''' + cust_affiliation + '''\',
                                             user_social_media = \'""" + user_social_signup + """\',
                                             user_access_token = \'""" + user_access_token + """\',
                                             social_timestamp = DATE_ADD(now() , INTERVAL 14 DAY),
@@ -8795,11 +8798,11 @@ class Edit_Meal(Resource):
 
 
 class MealCreation(Resource):               # NOT USED?  ENDPOINT MAY BE DEPRECATED
-    print("Meal Creation Endpoint")
+    
 
     def listIngredients(self, result):
+        print("Meal Creation Endpoint")
         response = {}
-        print("1")
         for meal in result:
             key = meal['meal_uid']
             if key not in response:
