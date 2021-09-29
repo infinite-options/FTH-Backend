@@ -878,6 +878,7 @@ class createAccount(Resource):
             # print(social_signup)
             get_user_id_query = "CALL new_customer_uid();"
             NewUserIDresponse = execute(get_user_id_query, 'get', conn)
+            print("NewUserIDresponse: ", NewUserIDresponse)
 
             if NewUserIDresponse['code'] == 490:
                 string = " Cannot get new User id. "
@@ -887,7 +888,9 @@ class createAccount(Resource):
                 response['message'] = "Internal Server Error."
                 return response, 500
             NewUserID = NewUserIDresponse['result'][0]['new_id']
+            print("NewUserID: ", NewUserID)
 
+            print("social_signup: ", social_signup)
             if social_signup == False:
 
                 salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
@@ -914,6 +917,7 @@ class createAccount(Resource):
 
                 print('ELSE- OUT')
 
+            print("Customer id: ", cust_id)
             if cust_id != 'NULL' and cust_id:
 
                 NewUserID = cust_id
@@ -959,20 +963,21 @@ class createAccount(Resource):
                                     password_algorithm = \'''' + algorithm + '''\',
                                     referral_source = \'''' + referral + '''\',
                                     role = \'''' + role + '''\',
-                                    cust_affiliation = = \'''' + cust_affiliation + '''\',
+                                    cust_affiliation = \'''' + cust_affiliation + '''\',
                                     user_social_media = \'''' + user_social_signup + '''\',
                                     social_timestamp  =  DATE_ADD(now() , INTERVAL 14 DAY)
                                     WHERE customer_uid = \'''' + cust_id + '''\';
                                     ''']
 
             else:
-
+                print("in else")
                 # check if there is a same customer_id existing
                 query = """
                         SELECT customer_email, role, customer_uid FROM fth.customers
                         WHERE customer_email = \'""" + email + "\';"
                 print('email---------')
                 items = execute(query, 'get', conn)
+                print(items)
                 if items['result']:
 
                     #items['result'] = ""
@@ -1010,7 +1015,7 @@ class createAccount(Resource):
                                             password_algorithm = \'""" + algorithm + """\',
                                             referral_source = \'""" + referral + """\',
                                             role = \'""" + role + """\',
-                                            cust_affiliation = = \'''' + cust_affiliation + '''\',
+                                            cust_affiliation = \'''' + cust_affiliation + '''\',
                                             user_social_media = \'""" + user_social_signup + """\',
                                             user_access_token = \'""" + user_access_token + """\',
                                             social_timestamp = DATE_ADD(now() , INTERVAL 14 DAY),
