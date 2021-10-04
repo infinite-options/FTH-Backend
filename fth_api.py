@@ -63,7 +63,8 @@ app.config['MAIL_SERVER'] = 'smtp.mydomain.com'
 app.config['MAIL_PORT'] = 465
 
 app.config['MAIL_USERNAME'] = 'support@mealsfor.me'
-app.config['MAIL_PASSWORD'] = 'Supportfth'
+# app.config['MAIL_PASSWORD'] = 'Supportfth'
+app.config['MAIL_PASSWORD'] = 'SupportM4Me' # changing Supportfth to this appears to fix set_temp_password
 app.config['MAIL_DEFAULT_SENDER'] = 'support@mealsfor.me'
 # app.config['MAIL_USERNAME'] = os.environ.get('SUPPORT_EMAIL')
 # app.config['MAIL_PASSWORD'] = os.environ.get('SUPPORT_PASSWORD')
@@ -845,6 +846,7 @@ class createAccount(Resource):
         response = {}
         items = []
         try:
+            print("CA 1")
             conn = connect()
             data = request.get_json(force=True)
             print(data)
@@ -868,10 +870,14 @@ class createAccount(Resource):
             cust_id = data['cust_id'] if data.get(
                 'cust_id') is not None else 'NULL'
 
+            print("CA 2")
+
             if data.get('social') is None or data.get('social') == "FALSE" or data.get('social') == False or data.get('social') == 'NULL':
                 social_signup = False
             else:
                 social_signup = True
+
+            print("CA 3")
 
             # print(social_signup)
             get_user_id_query = "CALL new_customer_uid();"
@@ -912,7 +918,10 @@ class createAccount(Resource):
 
                 print('ELSE- OUT')
 
+            print("CA 4")
+
             if cust_id != 'NULL' and cust_id:
+                print("CA 4.1")
 
                 NewUserID = cust_id
 
@@ -963,6 +972,7 @@ class createAccount(Resource):
                                     ''']
 
             else:
+                print("CA 4.2")
 
                 # check if there is a same customer_id existing
                 query = """
@@ -984,6 +994,8 @@ class createAccount(Resource):
                     items['code'] = 480
                     items['message'] = "Internal Server Error."
                     return items
+
+                print("CA 4.2.1")
 
                 customer_insert_query = ["""
                                         INSERT INTO fth.customers 
@@ -1016,6 +1028,9 @@ class createAccount(Resource):
                                             social_id = \'""" + social_id + """\'
                                             ;
                                         """]
+            print("CA 4.2.2")
+            # return 'test1'
+
 
             print(customer_insert_query[0])
             items = execute(customer_insert_query[0], 'post', conn)
@@ -1809,6 +1824,8 @@ class Change_Password(Resource):
             conn = connect()
             data = request.get_json(force=True)
 
+            print("CP 1")
+
             customer_uid = data['customer_uid']
             old_pass = data['old_password']
             new_pass = data['new_password']
@@ -1818,6 +1835,9 @@ class Change_Password(Resource):
                     """
             query_res = simple_get_execute(
                 query, "CHANGE PASSWORD QUERY", conn)
+
+            print("CP 2")
+
             if query_res[1] != 200:
                 return query_res
             # because the front end will send back plain password, We need to salt first
@@ -1825,9 +1845,15 @@ class Change_Password(Resource):
             old_salt = query_res[0]['result'][0]['password_salt']
             old_password_hashed = sha512(
                 (old_pass + old_salt).encode()).hexdigest()
+
+            print("CP 3")
+
             if old_password_hashed != query_res[0]['result'][0]['password_hashed']:
                 response['message'] = "Wrong Password"
                 return response, 401
+
+            print("CP 4")
+
             # create a new salt and hashing the new password
             new_salt = getNow()
             algorithm = query_res[0]['result'][0]['password_algorithm']
@@ -1837,6 +1863,9 @@ class Change_Password(Resource):
             else:  # if we have saved the hashing algorithm in our database,
                 response['message'] = "Cannot change Password. Need the algorithm to hashed the new password."
                 return response, 500
+
+            print("CP 5")
+
             update_query = """
                             UPDATE customers SET password_salt = '""" + new_salt + """', 
                                 password_hashed = '""" + new_password_hashed + """'
@@ -1844,6 +1873,9 @@ class Change_Password(Resource):
                             """
             update_query_res = simple_post_execute(
                 [update_query], ["UPDATE PASSWORD"], conn)
+
+            print("CP 6")
+
             if update_query_res[1] != 201:
                 return update_query_res
             response['message'] = "Password updated."
@@ -1880,27 +1912,33 @@ class set_temp_password(Resource):
             if customer_lookup['result'][0]['user_social_media'] != 'NULL':
                 return 'Need to do login via social'
 
+            print("STP 1")
+
             customer_uid = customer_lookup['result'][0]['customer_uid']
             pass_temp = self.get_random_string()
             salt = getNow()
             pass_temp_hashed = sha512((pass_temp + salt).encode()).hexdigest()
+            print("STP 2")
             # print(pass_temp_hashed)
             query = """
                     UPDATE fth.customers SET password_hashed = '""" + pass_temp_hashed + """'
                      , password_salt = '""" + salt + """' 
                      WHERE customer_uid = '""" + customer_uid + """';
                     """
+            print("STP 3")
             # update database with temp password
             query_result = execute(query, 'post', conn)
             if query_result['code'] != 281:
                 query_result['message'] = 'check sql query'
                 return query_result
+            print("STP 4")
             # send an email to client
             #print("mail 1")
             msg = Message("Email Verification", sender='support@servingfresh.me',
                           recipients=[email], bcc='support@servingfresh.me')
             msg.body = "Your temporary password is {}. Please use it to reset your password".format(
                 pass_temp)
+            print("STP 5")
             #print("mail 2")
             # msg2 = Message("Email Verification", sender='support@mealsfor.me', recipients='support@mealsfor.me')
             # supportmessage = str(email) + " has requested a temporary password, and it is {}."
@@ -1908,6 +1946,7 @@ class set_temp_password(Resource):
             # msg2.body = supportmessage.format(pass_temp)
             #print("ready to send")
             mail.send(msg)
+            print("STP 6")
             # #print("sending 2")
             # #print(msg2.body)
             # #print("actual sending 2")
