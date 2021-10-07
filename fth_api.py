@@ -3971,30 +3971,30 @@ class checkout_SN(Resource):
             print('in insert-------')
 
             query_insert = """ 
-                                    INSERT INTO fth.purchases
-                                    SET
-                                    purchase_uid = \'""" + newPurchaseUID + """\',
-                                    purchase_date = \'""" + purchase_date + """\',
-                                    purchase_id = \'""" + purchase_id + """\',
-                                    purchase_status = \'""" + purchase_status + """\',
-                                    pur_customer_uid = \'""" + pur_customer_uid + """\',
-                                    items = """ + items_pur + """,
-                                    order_instructions = \'""" + order_instructions + """\',
-                                    delivery_instructions = \'""" + delivery_instructions + """\',
-                                    order_type = \'""" + order_type + """\',
-                                    delivery_first_name = \'""" + delivery_first_name + """\',
-                                    delivery_last_name = \'""" + delivery_last_name + """\',
-                                    delivery_phone_num = \'""" + delivery_phone_num + """\',
-                                    delivery_email = \'""" + delivery_email + """\',
-                                    delivery_address = \'""" + delivery_address + """\',
-                                    delivery_unit = \'""" + delivery_unit + """\',
-                                    delivery_city = \'""" + delivery_city + """\',
-                                    delivery_state = \'""" + delivery_state + """\',
-                                    delivery_zip = \'""" + delivery_zip + """\',
-                                    delivery_latitude = \'""" + delivery_latitude + """\',
-                                    delivery_longitude = \'""" + delivery_longitude + """\',
-                                    purchase_notes = \'""" + purchase_notes + """\';
-                                """
+                INSERT INTO fth.purchases
+                SET
+                purchase_uid = \'""" + newPurchaseUID + """\',
+                purchase_date = \'""" + purchase_date + """\',
+                purchase_id = \'""" + purchase_id + """\',
+                purchase_status = \'""" + purchase_status + """\',
+                pur_customer_uid = \'""" + pur_customer_uid + """\',
+                items = """ + items_pur + """,
+                order_instructions = \'""" + order_instructions + """\',
+                delivery_instructions = \'""" + delivery_instructions + """\',
+                order_type = \'""" + order_type + """\',
+                delivery_first_name = \'""" + delivery_first_name + """\',
+                delivery_last_name = \'""" + delivery_last_name + """\',
+                delivery_phone_num = \'""" + delivery_phone_num + """\',
+                delivery_email = \'""" + delivery_email + """\',
+                delivery_address = \'""" + delivery_address + """\',
+                delivery_unit = \'""" + delivery_unit + """\',
+                delivery_city = \'""" + delivery_city + """\',
+                delivery_state = \'""" + delivery_state + """\',
+                delivery_zip = \'""" + delivery_zip + """\',
+                delivery_latitude = \'""" + delivery_latitude + """\',
+                delivery_longitude = \'""" + delivery_longitude + """\',
+                purchase_notes = \'""" + purchase_notes + """\';
+            """
             items = execute(query_insert, 'post', conn)
 
             print('execute')
@@ -15463,6 +15463,110 @@ class Add_New_Ingredient(Resource):
             disconnect(conn)
 
 
+# tool for automatically converting JSON post data into string entries for a MySQL query
+class tools(Resource):
+
+    def querify(self, data):
+
+        # print("\n==========| QUERIFY START |==========")
+
+        query_string = ""
+
+        print("(querify) data length: ", len(data))
+
+        index = 0
+        for val in data:
+
+            index = index + 1
+
+            print(index, type(data[val]), val, " = ", data[val])
+
+            query_val = data[val]
+
+            if type(data[val]) is list:
+                query_val = json.dumps(data[val])
+            
+            if type(data[val]) is int:
+                query_val = str(query_val)
+
+            endline = ","
+            if index == len(data):
+                endline = ";"
+
+            if data[val] is None:
+                # query_line = "\n\t" + val + " = NULL" + endline
+                continue
+            else:
+                query_line = "\n\t" + val + " = '" + query_val + "'" + endline
+
+            # print("query_line: ", query_line)
+            query_string = query_string + query_line
+
+        # print("==========|  QUERIFY END  |==========\n")
+
+        print("\n==========| QUERIFY START |==========")
+        print(query_string)
+        print("==========|  QUERIFY END  |==========\n")
+
+        return query_string
+
+
+class Households(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                SELECT * FROM fth.households;
+            """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+    def post(self):
+        try:
+            print("HH 1")
+            conn = connect()
+            data = request.get_json(force=True)
+
+            print("\nData: ", data, "\n")
+
+            query_entries = tools().querify(data)
+            # print("HH query: ", query)
+
+            # query = "INSERT INTO fth.households\nSET" + query_entries
+            household_uid_request = get_new_id(
+                "CALL new_household_uid();", "Get_New_Household_uid", conn)
+            if household_uid_request[1] != 200:
+                return household_uid_request
+            household_uid = household_uid_request[0]['result']
+
+            query = """
+                INSERT INTO fth.households
+                SET
+                    household_uid = '""" + household_uid + """',
+            """ + query_entries
+
+            print("\n==========| QUERY START |==========")
+            print(query)
+            print("==========|  QUERY END  |==========\n")
+
+            print("HH 6")
+
+            response = simple_post_execute([query], [__class__.__name__], conn)
+            if response[1] != 201:
+                return response
+            response[0]['coupon_uid'] = household_uid
+            return response
+
+        except:
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
+
+
+
 # Define API routes
 # Customer APIs
 
@@ -15999,6 +16103,8 @@ api.add_resource(calculator, '/api/v2/calculator/<string:pur_uid>')
 api.add_resource(stripe_transaction, '/api/v2/stripe_transaction')
 
 api.add_resource(test_endpoint, '/api/v2/test_endpoint')
+
+api.add_resource(Households, '/api/v2/households')
 
 
 # Run on below IP address and port
