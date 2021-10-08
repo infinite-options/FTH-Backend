@@ -45,6 +45,7 @@ import stripe
 import binascii
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
+import geopy.distance
 import os
 s3 = boto3.client('s3')
 
@@ -6058,6 +6059,158 @@ class Businesses(Resource):
         finally:
 
             disconnect(conn)
+
+
+class food_bank(Resource):
+
+    def get(self):
+        try:
+            # "https://dev.virtualearth.net/REST/v1/Locations/";
+            # params: {
+            #     CountryRegion: "US",
+            #     adminDistrict: state,
+            #     locality: city,
+            #     postalCode: zip,
+            #     addressLine: street,
+            #     key: process.env.REACT_APP_BING_LOCATION_KEY,
+            # },
+            conn = connect()
+            query = """
+                SELECT * FROM fth.businesses
+                WHERE business_type = 'Food Bank';
+            """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+    def post(self):
+        conn = connect()
+        data = request.get_json(force=True)
+        try:
+            TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            query = ["call fth.new_business_uid();"]
+            businessID = execute(query[0], 'get', conn)
+            businessUID = businessID['result'][0]['new_id']
+            print("(FB) new UID: ", businessUID)
+
+            # business_hours = str(data['business_hours'])
+            # business_hours = "'" + business_hours.replace("'", "\"") + "'"
+            # print(business_hours)
+
+            # business_accepting_hours = str(
+            #     data['business_accepting_hours'])
+            # business_accepting_hours = "'" + \
+            #     business_accepting_hours.replace("'", "\"") + "'"
+            # print(business_accepting_hours)
+
+            # business_delivery_hours = str(data['business_delivery_hours'])
+            # business_delivery_hours = "'" + \
+            #     business_delivery_hours.replace("'", "\"") + "'"
+            # print(business_delivery_hours)
+
+            # item_types = str(data['item_types'])
+            # item_types = "'" + \
+            #     item_types.replace("'", "\"") + "'"
+            # print(item_types)
+
+            query_entries = tools().querify(data)
+
+            query = "INSERT INTO fth.businesses\nSET"
+            query = query + "\n\tbusiness_uid = '" + businessUID + "',"
+            query = query + "\n\tbusiness_created_at = '" + TimeStamp + "',"
+            query = query + "\n\tbusiness_type = 'Food Bank',"
+            query = query + query_entries
+
+            print("\n==========| QUERY START |==========")
+            print(query)
+            print("==========|  QUERY END  |==========\n")
+
+            # return "test"
+
+            item = execute(query, 'post', conn)
+
+            if item['code'] == 281:
+                item['code'] = 200
+                item['message'] = 'Business info created'
+                item['uid'] = businessUID
+            else:
+                item['message'] = 'check sql query'
+                item['code'] = 490
+            return item
+
+        except:
+            raise BadRequest("Request failed, please try again later.")
+        finally:
+            disconnect(conn)
+
+
+class find_food_banks(Resource):
+    def get(self, radius, units, latitude, longitude):
+        try:
+            conn = connect()
+            query = """
+                SELECT * FROM fth.businesses
+                WHERE business_type = 'Food Bank';
+            """
+            items = simple_get_execute(query, __class__.__name__, conn)
+            # print("\n(FFB) items: ", items)
+            print("(FFB 1)")
+
+            # print("(FFB) code: ", items[1])
+
+            # food_banks = items['result']
+
+            if items[1] != 200:
+                items['message'] = 'check sql query'
+                return items
+
+            food_banks = items[0]['result']
+
+            banks_nearby = []
+
+            print("(FFB 2)")
+            for bank in food_banks:
+                print("\n==========| food bank |==========: ")
+                # print(bank)
+                bank_lat = float(bank['business_latitude'])
+                bank_lon = float(bank['business_longitude'])
+                print("name: ", bank['business_name'])
+                print("uid: ", bank['business_uid'])
+                print("lat: ", bank_lat)
+                print("lon: ", bank_lon)
+
+                user_coords = (float(latitude), float(longitude))
+                bank_coords = (bank_lat, bank_lon)
+
+                distance = 0.0
+                print("(FFB 3)")
+                if units == 'miles':
+                    distance = geopy.distance.distance(user_coords, bank_coords).miles
+                else:
+                    distance = geopy.distance.distance(user_coords, bank_coords).km
+
+                print("(FFB 4)")
+                if distance < float(radius):
+                    print("(FFB 5)")
+                    banks_nearby.append(bank)
+
+                print("(FFB) distance: ", distance)
+
+            print("(FFB 6)")
+            message = str(len(banks_nearby)) + " food bank(s) found within " + radius + " " + units
+            result = {
+                "result": message,
+                "banks_found": banks_nearby
+            }
+
+            return result
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 
 
 class food_bank_order_summary_page(Resource):
@@ -15486,7 +15639,7 @@ class tools(Resource):
             if type(data[val]) is list:
                 query_val = json.dumps(data[val])
             
-            if type(data[val]) is int:
+            if type(data[val]) is int or type(data[val]) is float:
                 query_val = str(query_val)
 
             endline = ","
@@ -15543,8 +15696,8 @@ class Households(Resource):
             household_uid = household_uid_request[0]['result']
 
             query = """
-                INSERT INTO fth.households
-                SET
+            INSERT INTO fth.households
+            SET
                     household_uid = '""" + household_uid + """',
             """ + query_entries
 
@@ -15714,6 +15867,8 @@ api.add_resource(Ingredients_Need, '/api/v2/ingredients_need')
 
 #**********************************************************************************#
 #---FOOD BANKS ADMIN ---#
+api.add_resource(food_bank, '/api/v2/food_bank')
+api.add_resource(find_food_banks, '/api/v2/find_food_banks/<string:radius>,<string:units>,<string:latitude>,<string:longitude>')
 api.add_resource(food_bank_order_summary_page,
                  '/api/v2/food_bank_order_summary_page/<string:delivery_date>,<string:business_uid>')
 api.add_resource(business_details_update,
