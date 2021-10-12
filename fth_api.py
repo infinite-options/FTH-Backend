@@ -15719,6 +15719,19 @@ class Households(Resource):
             disconnect(conn)
 
 
+class faqs(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            query = """
+                SELECT * FROM fth.faqs;
+            """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 
 # Define API routes
 # Customer APIs
@@ -16261,6 +16274,7 @@ api.add_resource(test_endpoint, '/api/v2/test_endpoint')
 
 api.add_resource(Households, '/api/v2/households')
 
+api.add_resource(faqs, '/api/v2/faqs')
 
 # Run on below IP address and port
 # Make sure port number is unused (i.e. don't use numbers 0-1023)
