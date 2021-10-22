@@ -5352,20 +5352,35 @@ class supply_items(Resource):
     def get(self):
         try:
             conn = connect()
-            query = """
+            business_uid = request.args.get('business_uid')
+            if business_uid == None:
+                query = """
                     SELECT -- *
-                    s.*,
-                    brand_name,
-                    item_name,
-                    item_type
+                        s.*,
+                        brand_name,
+                        item_name,
+                        item_type
                     FROM fth.supply2 s
                     LEFT JOIN fth.brand
                         ON brand_uid = sup_brand_uid
                     LEFT JOIN fth.items
                         ON item_uid = sup_item_uid
                     ORDER BY item_name;
-                    
-                    """
+                """
+            else:
+                query = """
+                    SELECT -- *
+                        s.*,
+                        brand_name,
+                        item_name,
+                        item_type
+                    FROM fth.supply2 s
+                    LEFT JOIN fth.brand
+                        ON brand_uid = sup_brand_uid
+                    LEFT JOIN fth.items
+                        ON item_uid = sup_item_uid
+                    ORDER BY item_name;
+                """
 
             items = execute(query, 'get', conn)
             return items
@@ -5431,9 +5446,14 @@ class get_brands_list(Resource):
     def get(self):
         try:
             conn = connect()
+            # query = """
+            #         SELECT -- *
+            #         brand_name
+            #         FROM fth.brand
+            #         ORDER BY brand_name;  
+            #         """
             query = """
-                    SELECT -- *
-                    brand_name
+                    SELECT *
                     FROM fth.brand
                     ORDER BY brand_name;  
                     """
@@ -5449,11 +5469,39 @@ class get_items_list(Resource):
     def get(self):
         try:
             conn = connect()
+            # query = """
+            #         SELECT -- *
+            #         item_name
+            #         FROM fth.items
+            #         ORDER BY item_name;  
+            #         """
             query = """
-                    SELECT -- *
-                    item_name
+                    SELECT *
                     FROM fth.items
                     ORDER BY item_name;  
+                    """
+
+            items = execute(query, 'get', conn)
+            return items
+        except:
+            raise BadRequest('Request failed, please try again later.')
+            
+        finally:
+            disconnect(conn)
+
+class get_receive_list(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            # query = """
+            #         SELECT -- *
+            #         item_name
+            #         FROM fth.items
+            #         ORDER BY item_name;  
+            #         """
+            query = """
+                    SELECT *
+                    FROM fth.receive
                     """
 
             items = execute(query, 'get', conn)
@@ -5779,6 +5827,54 @@ class add_donation(Resource):
                     """
             
             print(query)
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+class add_donation_brandon(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            # print("in")
+            # receive_supply_uid = data.get('receive_supply_uid')
+            # receive_business_uid = data.get('receive_business_uid')
+            # donation_type = data.get('donation_type')
+            # qty_received = data.get('qty_received')
+            # receive_date = request.form.get('receive_date')
+            # available_date = request.form.get('available_date')
+            # exp_date = request.form.get('exp_date')
+            
+            query = ["call fth.new_receive_uid();"]
+            receiveID = execute(query[0], 'get', conn)
+            receiveUID = receiveID['result'][0]['new_id']
+
+            query_entries = tools().querify(data)
+
+            query = "INSERT INTO fth.receive\nSET"
+            query = query + "\n\treceive_uid = '" + receiveUID + "',"
+            query = query + query_entries
+
+            print("========== ad query ==========")
+
+            # query = """
+            #     INSERT INTO fth.receive
+            #     SET 
+            #     receive_uid = \'""" + receiveUID + """\', 
+                # receive_supply_uid = \'""" + receive_supply_uid + """\',
+                # receive_business_uid = \'""" + receive_business_uid + """\', 
+                # donation_type = \'""" + donation_type + """\',
+                # qty_received = \'""" + qty_received + """\',
+                # receive_date = \'""" + receive_date + """\',
+                # available_date = \'""" + available_date + """\', 
+                # exp_date = \'""" + exp_date + """\';
+            #         """
+            
+            print(query)
+            # return "ad_test"
             items = execute(query, 'post', conn)
             return items
 
@@ -6287,41 +6383,41 @@ class business_details_update(Resource):
             data = request.get_json(force=True)
 
             if action == 'Get':
-                query = """ SELECT
-                            business_uid,
-                            business_name,
-                            business_type,
-                            business_desc,
-                            business_contact_first_name,
-                            business_contact_last_name,
-                            business_phone_num,                            
-                            business_phone_num2,
-                            business_email,
-                            business_hours,
-                            business_accepting_hours,
-                            business_delivery_hours,
-                            business_address,
-                            business_unit,
-                            business_city,
-                            business_state,
-                            business_zip,
-                            can_cancel,
-                            delivery,
-                            reusable,
-                            business_image,
-                            platform_fee,
-                            transaction_fee,
-                            revenue_sharing,
-                            profit_sharing,
-                            business_status,
-                            business_facebook_url,
-                            business_instagram_url,
-                            business_twitter_url,
-                            business_website_url,
-                            limit_per_person,
-                            item_types
-                        FROM fth.businesses WHERE business_uid = \'""" + \
-                    data['business_uid'] + """\';"""
+                query = """ 
+                    SELECT
+                        business_uid,
+                        business_name,
+                        business_type,
+                        business_desc,
+                        business_contact_first_name,
+                        business_contact_last_name,
+                        business_phone_num,                            
+                        business_phone_num2,
+                        business_email,
+                        business_hours,
+                        business_accepting_hours,
+                        business_delivery_hours,
+                        business_address,
+                        business_unit,
+                        business_city,
+                        business_state,
+                        business_zip,
+                        can_cancel,
+                        delivery,
+                        reusable,
+                        business_image,
+                        business_status,
+                        business_facebook_url,
+                        business_instagram_url,
+                        business_twitter_url,
+                        business_website_url,
+                        limit_per_person,
+                        item_types
+                    FROM fth.businesses 
+                    WHERE 
+                        business_uid = \'""" + data['business_uid'] + """\';
+                """
+                print("query: ", query)
                 item = execute(query, 'get', conn)
                 if item['code'] == 280:
                     if not item['result']:
@@ -6671,16 +6767,16 @@ class update_food_bank_item_admin(Resource):
                 print("in if")
                 query = """
                     UPDATE 
-                    fth.supply 
+                        fth.supply 
                     SET
-                    itm_business_uid = \'""" + data['itm_business_uid'] + """\',
-                    business_price = \'""" + str(data['business_price']) + """\', 
-                    item_status = \'""" + data['item_status'] + """\', 
-                    sup_type = \'""" + data['sup_type'] + """\',
-                    item_qty = \'""" + str(data['item_qty']) + """\',
-                    receive_date = \'""" + data['receive_date'] + """\',
-                    available_date = \'""" + data['available_date'] + """\',
-                    exp_date = \'""" + data['exp_date'] + """\'
+                        itm_business_uid = \'""" + data['itm_business_uid'] + """\',
+                        business_price = \'""" + str(data['business_price']) + """\', 
+                        item_status = \'""" + data['item_status'] + """\', 
+                        sup_type = \'""" + data['sup_type'] + """\',
+                        item_qty = \'""" + str(data['item_qty']) + """\',
+                        receive_date = \'""" + data['receive_date'] + """\',
+                        available_date = \'""" + data['available_date'] + """\',
+                        exp_date = \'""" + data['exp_date'] + """\'
                     WHERE supply_uid = \'""" + data['supply_uid'] + """\' ;
                     """
                 
@@ -9239,25 +9335,27 @@ class UpdateProfile(Resource):
             state = data['state']
             zip_code = data['zip']
             notification = data['noti']
+            affiliation = data['affiliation']
             print(data)
 
             customer_insert_query = [""" 
-                                    UPDATE fth.customers
-                                    SET
-                                    customer_first_name = \'""" + f_name + """\',
-                                    customer_last_name = \'""" + l_name + """\',
-                                    customer_phone_num = \'""" + phone + """\',
-                                    customer_email = \'""" + email + """\',
-                                    id_type = \'""" + id_type + """\',
-                                    id_number = \'""" + id_number + """\',
-                                    customer_address = \'""" + address + """\',
-                                    customer_unit = \'""" + unit + """\',
-                                    customer_city = \'""" + city + """\',
-                                    customer_state = \'""" + state + """\',
-                                    customer_zip = \'""" + zip_code + """\',
-                                    cust_notification_approval = \'""" + notification + """\'
-                                    WHERE customer_uid =\'""" + uid + """\';
-                                """]
+                UPDATE fth.customers
+                SET
+                customer_first_name = \'""" + f_name + """\',
+                customer_last_name = \'""" + l_name + """\',
+                customer_phone_num = \'""" + phone + """\',
+                customer_email = \'""" + email + """\',
+                id_type = \'""" + id_type + """\',
+                id_number = \'""" + id_number + """\',
+                customer_address = \'""" + address + """\',
+                customer_unit = \'""" + unit + """\',
+                customer_city = \'""" + city + """\',
+                customer_state = \'""" + state + """\',
+                customer_zip = \'""" + zip_code + """\',
+                cust_notification_approval = \'""" + notification + """\',
+                cust_affiliation = \'""" + affiliation + """\'
+                WHERE customer_uid = \'""" + uid + """\';
+            """]
 
             # print(customer_insert_query)
             item = execute(customer_insert_query[0], 'post', conn)
@@ -15952,11 +16050,12 @@ api.add_resource(get_tags_list,'/api/v2/get_tags_list')
 api.add_resource(get_types_list,'/api/v2/get_types_list')
 api.add_resource(get_brands_list,'/api/v2/get_brands_list')
 api.add_resource(get_items_list,'/api/v2/get_items_list')
+api.add_resource(get_receive_list,'/api/v2/get_receive_list')
 api.add_resource(get_non_specific_unit_list,'/api/v2/get_non_specific_unit_list')
 
 #  -- DONATIONS ADMIN RELATED ENDPOINTS    -----------------------------------------
 api.add_resource(foodbank_donations,'/api/v2/foodbank_donations/<string:business_uid>')
-api.add_resource(add_donation,'/api/v2/add_donation')
+api.add_resource(add_donation_brandon,'/api/v2/add_donation')
 
 #  -- INVENTORY ADMIN RELATED ENDPOINTS    -----------------------------------------
 
