@@ -2088,92 +2088,129 @@ class AppleEmail(Resource):
 
 #  -- MEAL/MENU RELATED ENDPOINTS    -----------------------------------------
 #  -- CUSTOMER RELATED ENDPOINTS    -----------------------------------------
-class getItems(Resource):
-    def post(self):
-        response = {}
-        items = {}
+# class getItems(Resource):
+#     def post(self):
+#         response = {}
+#         items = {}
 
-        try:
-            conn = connect()
+#         try:
+#             conn = connect()
 
-            data = request.get_json(force=True)
-            ids = data['ids']
-            types = data['types']
+#             data = request.get_json(force=True)
+#             ids = data['ids']
+#             types = data['types']
            
             
-            print(ids)
-            print(types)
+#             print(ids)
+#             print(types)
 
-            if(len(types) == 0 and len(ids) == 0):
-                print("in if")
-                query = """
-                        SELECT * 
-                        FROM (SELECT * FROM fth.packages 
-                        LEFT JOIN fth.fth_items
-                        ON item_uid = package_item_uid
-                        LEFT JOIN fth.supply
-                        ON sup_package_uid = package_uid) as tt
-                        WHERE item_status = 'Active'
-                        ORDER BY item_name;
-                        """
-            elif(len(types) == 0 and len(ids) !=0):
-                print("in elif 1")
-                ids.append('')
-                query = """
-                        SELECT * 
-                        FROM (SELECT * FROM fth.packages 
-                        LEFT JOIN fth.fth_items
-                        ON item_uid = package_item_uid
-                        LEFT JOIN fth.supply
-                        ON sup_package_uid = package_uid) as tt
-                        WHERE itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
-                        GROUP BY item_name
-                        ORDER BY item_name;
-                        """
-            elif(len(ids) == 0 and len(types) !=0):
-                print("in elif 2")
-                types.append('')
-                query = """
-                        SELECT * 
-                        FROM (SELECT * FROM fth.packages 
-                        LEFT JOIN fth.fth_items
-                        ON item_uid = package_item_uid
-                        LEFT JOIN fth.supply
-                        ON sup_package_uid = package_uid) as tt
-                        WHERE item_type IN """ + str(tuple(types)) + """ AND item_status = 'Active'
-                        GROUP BY item_name
-                        ORDER BY item_name;
-                        """
-            else:
-                print("in else")
-                query = """
-                        SELECT * 
-                        FROM (SELECT * FROM fth.packages 
-                        LEFT JOIN fth.fth_items
-                        ON item_uid = package_item_uid
-                        LEFT JOIN fth.supply
-                        ON sup_package_uid = package_uid) as tt
-                        WHERE item_type IN """ + str(tuple(types)) + """ AND itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
-                        GROUP BY item_name
-                        ORDER BY item_name;
-                        """
-            print("after query")           
-            print(query)
-            items = execute(query, 'get', conn)
+#             if(len(types) == 0 and len(ids) == 0):
+#                 print("in if")
+#                 query = """
+#                         SELECT * 
+#                         FROM (SELECT * FROM fth.packages 
+#                         LEFT JOIN fth.fth_items
+#                         ON item_uid = package_item_uid
+#                         LEFT JOIN fth.supply
+#                         ON sup_package_uid = package_uid) as tt
+#                         WHERE item_status = 'Active'
+#                         ORDER BY item_name;
+#                         """
+#             elif(len(types) == 0 and len(ids) !=0):
+#                 print("in elif 1")
+#                 ids.append('')
+#                 query = """
+#                         SELECT * 
+#                         FROM (SELECT * FROM fth.packages 
+#                         LEFT JOIN fth.fth_items
+#                         ON item_uid = package_item_uid
+#                         LEFT JOIN fth.supply
+#                         ON sup_package_uid = package_uid) as tt
+#                         WHERE itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
+#                         GROUP BY item_name
+#                         ORDER BY item_name;
+#                         """
+#             elif(len(ids) == 0 and len(types) !=0):
+#                 print("in elif 2")
+#                 types.append('')
+#                 query = """
+#                         SELECT * 
+#                         FROM (SELECT * FROM fth.packages 
+#                         LEFT JOIN fth.fth_items
+#                         ON item_uid = package_item_uid
+#                         LEFT JOIN fth.supply
+#                         ON sup_package_uid = package_uid) as tt
+#                         WHERE item_type IN """ + str(tuple(types)) + """ AND item_status = 'Active'
+#                         GROUP BY item_name
+#                         ORDER BY item_name;
+#                         """
+#             else:
+#                 print("in else")
+#                 query = """
+#                         SELECT * 
+#                         FROM (SELECT * FROM fth.packages 
+#                         LEFT JOIN fth.fth_items
+#                         ON item_uid = package_item_uid
+#                         LEFT JOIN fth.supply
+#                         ON sup_package_uid = package_uid) as tt
+#                         WHERE item_type IN """ + str(tuple(types)) + """ AND itm_business_uid IN """ + str(tuple(ids)) + """ AND item_status = 'Active'
+#                         GROUP BY item_name
+#                         ORDER BY item_name;
+#                         """
+#             print("after query")           
+#             print(query)
+#             items = execute(query, 'get', conn)
 
-            if items['code'] != 280:
-                items['message'] = 'check sql query'
-                return items
+#             if items['code'] != 280:
+#                 items['message'] = 'check sql query'
+#                 return items
 
-            items['message'] = 'Items sent successfully'
-            items['code'] = 200
+#             items['message'] = 'Items sent successfully'
+#             items['code'] = 200
             
-            return items
+#             return items
 
+#         except:
+#             raise BadRequest('Request failed, please try again later.')
+#         finally:
+#             disconnect(conn)
+class getItems_brandon(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            id = request.args.get('business_uid')
+            print("gib id: ", id)
+            if id is not None: 
+                query = """
+                    SELECT *
+                    FROM fth.supply2 s
+                    LEFT JOIN fth.brand
+                        ON brand_uid = sup_brand_uid
+                    LEFT JOIN fth.items
+                        ON item_uid = sup_item_uid
+                    LEFT JOIN fth.receive
+                        ON supply_uid = receive_supply_uid
+                    WHERE receive_business_uid = '""" + id + """'
+                    ORDER BY item_name;
+                """
+            else:
+                query = """
+                    SELECT *
+                    FROM fth.supply2 s
+                    LEFT JOIN fth.brand
+                        ON brand_uid = sup_brand_uid
+                    LEFT JOIN fth.items
+                        ON item_uid = sup_item_uid
+                    LEFT JOIN fth.receive
+                        ON supply_uid = receive_supply_uid
+                    ORDER BY item_name;
+                """
+            return simple_get_execute(query, __class__.__name__, conn)
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
 
 class ProduceByLocation_Prime(Resource):
     def get(self, long, lat):
@@ -16068,7 +16105,8 @@ api.add_resource(add_measure,'/api/v2/add_measure')
 #---customer related endpoints ---#
 
 #---Items page ---#
-api.add_resource(getItems, '/api/v2/getItems')
+# api.add_resource(getItems, '/api/v2/getItems')
+api.add_resource(getItems_brandon, '/api/v2/getItems')
 
 #---Profile page ---#
 
