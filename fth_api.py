@@ -2179,32 +2179,31 @@ class getItems_brandon(Resource):
         try:
             conn = connect()
             id = request.args.get('business_uid')
+            item_type = request.args.get('item_type')
             print("gib id: ", id)
-            if id is not None: 
-                query = """
-                    SELECT *
-                    FROM fth.supply2 s
-                    LEFT JOIN fth.brand
-                        ON brand_uid = sup_brand_uid
-                    LEFT JOIN fth.items
-                        ON item_uid = sup_item_uid
-                    LEFT JOIN fth.receive
-                        ON supply_uid = receive_supply_uid
-                    WHERE receive_business_uid = '""" + id + """'
-                    ORDER BY item_name;
-                """
-            else:
-                query = """
-                    SELECT *
-                    FROM fth.supply2 s
-                    LEFT JOIN fth.brand
-                        ON brand_uid = sup_brand_uid
-                    LEFT JOIN fth.items
-                        ON item_uid = sup_item_uid
-                    LEFT JOIN fth.receive
-                        ON supply_uid = receive_supply_uid
-                    ORDER BY item_name;
-                """
+
+            where_clause = ""
+            if id is not None and item_type is None: 
+                where_clause = "WHERE receive_business_uid = '" + id + "'"
+            elif id is None and item_type is not None: 
+                where_clause = "WHERE item_type = '" + item_type + "'"
+            elif id is not None and item_type is not None:
+                where_clause = "WHERE receive_business_uid = '" + id + "' AND item_type = '" + item_type + "'"
+
+            query = """
+                SELECT *
+                FROM fth.supply2 s
+                LEFT JOIN fth.brand
+                    ON brand_uid = sup_brand_uid
+                LEFT JOIN fth.items
+                    ON item_uid = sup_item_uid
+                LEFT JOIN fth.receive
+                    ON supply_uid = receive_supply_uid
+                """ + where_clause + """
+                ORDER BY item_name;
+            """
+            print("gib query: ", query)
+
             return simple_get_execute(query, __class__.__name__, conn)
         except:
             raise BadRequest('Request failed, please try again later.')
