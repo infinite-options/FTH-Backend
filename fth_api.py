@@ -1305,6 +1305,243 @@ class createAccount2(Resource):
         finally:
             disconnect(conn)
 
+class createAccount_fth(Resource):
+
+    def post(self):
+        response = {}
+        items = []
+
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+
+            print("(cafth) 1")
+
+            # return "ca_test_1"
+
+            # make sure post data contains:
+            #   -first_name
+            #   -last_name
+            #   -id_type
+            #   -social
+
+            # if social account, post data must also contain:
+            #   -social_id
+            #   -user_access_token
+            #   -user_refresh_token
+            #   -mobile_access_token
+            #   -mobile_refresh_token
+            # else, post data must contain:
+            #   -password
+
+            pw = data.get('password')
+            data.pop('password')
+
+            query_entries = tools().querify(data)
+            print("(cafth) query_entries: ", query_entries)
+
+            # return "ca_test_2"
+
+            email = data.get('customer_email')
+            firstName = data.get('customer_first_name')
+            lastName = data.get('customer_last_name')
+            phone = data.get('customer_phone_number')
+            id_type = data.get('id_type')
+            id_number = data.get('id_number')
+
+            print("(cafth) 1.1")
+
+            if firstName is None or lastName is None or id_type is None:
+                print("(cafth) 1.2")
+                response["message"] = "Missing arguments"
+                print("(cafth) 1.3")
+                response['code'] = 400
+                print("(cafth) 1.4")
+                return response
+
+            print("(cafth) 2")
+            # address = data['address']
+            # unit = data['unit'] if data.get('unit') is not None else 'NULL'
+            # social_id = data['social_id'] if data.get(
+            #     'social_id') is not None else 'NULL'
+            # city = data['city']
+            # state = data['state']
+            # zip_code = data['zip_code']
+            # latitude = data['latitude']
+            # longitude = data['longitude']
+            # referral = data['referral_source']
+            # role = data['role']
+            # cust_id = data['cust_id'] if data.get(
+            #     'cust_id') is not None else 'NULL'
+
+            # return "ca_test_3"
+
+            if data.get('social') is None or data.get('social') == "FALSE" or data.get('social') == False or data.get('social') == 'NULL':
+                social_signup = False
+                            # if social_signup == False:
+                salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+                password = sha512((pw + salt).encode()).hexdigest()
+                algorithm = "SHA512"
+            else:
+                social_signup = True
+
+            print("(cafth) 3")
+
+            # return "ca_test_4"
+
+            user_id_query = "CALL new_customer_uid();"
+            user_id_response = execute(user_id_query, 'get', conn)
+
+            if user_id_response['code'] == 490:
+                response['code'] = 500
+                response['message'] = "ERROR: cannot get new user ID"
+                return response
+                # return "ERROR: cannot get new user ID", 500
+
+            user_id = user_id_response['result'][0]['new_id']
+
+            print("(cafth) 3.1")
+
+            # return "ca_test_5"
+
+            # if social_signup == False:
+            #     salt = (datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+            #     password = sha512((pw + salt).encode()).hexdigest()
+            #     algorithm = "SHA512"
+
+            print("(cafth) 3.2")
+
+            # return "ca_test_6"
+
+            # check if there is a same customer_id existing
+
+            if id_type.upper() == 'EMAIL':
+                print("(cafth) 3.2.1")
+                id_value = email
+
+                query_same_id = """
+                    SELECT 
+                        role, 
+                        customer_uid,
+                        id_type,
+                        customer_email
+                    FROM fth.customers
+                    WHERE customer_email = \'""" + id_value + """\'
+                    AND id_type = \'""" + id_type + """\';
+                """
+            
+                print("(cafth) 3.3")
+
+            elif id_type.upper() == 'PHONE':
+                print("(cafth) 3.2.2")
+                id_value = phone
+
+                query_same_id = """
+                    SELECT 
+                        role, 
+                        customer_uid,
+                        id_type,
+                        customer_phone_number
+                    FROM fth.customers
+                    WHERE customer_phone_number = \'""" + id_value + """\'
+                    AND id_type = \'""" + id_type + """\';
+                """
+
+                print("(cafth) 3.4")
+
+            elif id_type.upper() == 'DRIVER LICENSE' or id_type.upper() == 'PASSPORT' or id_type.upper() == 'SOCIAL SECURITY' or id_type.upper() == 'REAL ID':
+                print("(cafth) 3.2.3")
+                id_value = id_number
+
+                query_same_id = """
+                    SELECT 
+                        role, 
+                        customer_uid,
+                        id_type,
+                        id_number
+                    FROM fth.customers
+                    WHERE id_number = \'""" + id_value + """\'
+                    AND id_type = \'""" + id_type + """\';
+                """
+
+                print("(cafth) 3.5")
+
+            else:
+                response['code'] = 400
+                response['message'] = "Invalid ID type: " + id_type
+                return response
+
+
+            print("(cafth) query_same_id: ", query_same_id)
+            print("(cafth) 3.6")
+
+            items = execute(query_same_id, 'get', conn)
+            print("(cafth) same ID check result: ", items)
+            if items['result']:
+
+                #items['result'] = ""
+                response['code'] = 409
+                response['message'] = "ID " + id_value + " of type " + id_type + " has already been taken"
+
+                return response
+
+            if items['code'] == 480:
+
+                response['result'] = ""
+                response['code'] = 480
+                response['message'] = "Internal Server Error."
+                return response
+
+            print("(cafth) 4")
+
+            insert_query = """
+                INSERT INTO fth.customers 
+                SET customer_uid = \'""" + user_id + """\',
+                    customer_created_at = \'""" + (datetime.now()).strftime("%Y-%m-%d %H:%M:%S") + """\',
+                    password_salt = \'""" + salt + """\',
+                    password_hashed = \'""" + password + """\',
+                    password_algorithm = \'""" + algorithm + """\',
+                    social_timestamp = DATE_ADD(now() , INTERVAL 14 DAY),
+                    """ + query_entries + """;
+            """
+
+            print("(cafth) 5")
+
+            print(insert_query)
+            items = execute(insert_query, 'post', conn)
+
+            if items['code'] != 281:
+                response['result'] = ""
+                response['code'] = 480
+                response['message'] = "Error while inserting values in database"
+                return response
+
+            items['result'] = {
+                'first_name': firstName,
+                'last_name': lastName,
+                'customer_uid': user_id,
+                'access_token': data.get('user_access_token'),
+                'refresh_token': data.get('user_refresh_token'),
+                'access_token': data.get('mobile_access_token'),
+                'refresh_token': data.get('mobile_refresh_token'),
+                'social_id': data.get('social_id')
+            }
+
+            items['message'] = 'Signup successful'
+            items['code'] = 200
+
+            print("(cafth) 6")
+
+            return items
+
+        except:
+            print("(createAccount_fth) Error happened while trying to sign up")
+            if "user_id" in locals():
+                execute("DELETE FROM customers WHERE customer_uid = '" + user_id + "';", 'post', conn)
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
 
 # delete account endpoint
 class deleteAccount(Resource):
@@ -1335,7 +1572,7 @@ class email_verification(Resource):
             conn = connect()
 
             data = request.get_json(force=True)
-            # print(data)
+            print("data: ", data)
             email = data['email']
             query = """
                     SELECT password_hashed
@@ -2178,18 +2415,34 @@ class getItems_brandon(Resource):
     def get(self):
         try:
             conn = connect()
-            id = request.args.get('business_uid')
-            item_type = request.args.get('item_type')
-            print("gib id: ", id)
+            # id = request.args.get('business_uid')
+            # item_type = request.args.get('item_type')
+            # print("gib id: ", id)
 
-            where_clause = ""
-            if id is not None and item_type is None: 
-                where_clause = "WHERE receive_business_uid = '" + id + "'"
-            elif id is None and item_type is not None: 
-                where_clause = "WHERE item_type = '" + item_type + "'"
-            elif id is not None and item_type is not None:
-                where_clause = "WHERE receive_business_uid = '" + id + "' AND item_type = '" + item_type + "'"
+            # where_clause = ""
+            # if id is not None and item_type is None: 
+            #     where_clause = "WHERE receive_business_uid = '" + id + "'"
+            # elif id is None and item_type is not None: 
+            #     where_clause = "WHERE item_type = '" + item_type + "'"
+            # elif id is not None and item_type is not None:
+            #     where_clause = "WHERE receive_business_uid = '" + id + "' AND item_type = '" + item_type + "'"
 
+            # tools().filter
+            where_clause = tools().generate_filter(request.args)
+            print("(gib) where_clause")
+
+            # query = """
+            #     SELECT *
+            #     FROM fth.supply2 s
+            #     LEFT JOIN fth.brand
+            #         ON brand_uid = sup_brand_uid
+            #     LEFT JOIN fth.items
+            #         ON item_uid = sup_item_uid
+            #     LEFT JOIN fth.receive
+            #         ON supply_uid = receive_supply_uid
+            #     """ + where_clause + """
+            #     ORDER BY item_name;
+            # """
             query = """
                 SELECT *
                 FROM fth.supply2 s
@@ -2199,6 +2452,8 @@ class getItems_brandon(Resource):
                     ON item_uid = sup_item_uid
                 LEFT JOIN fth.receive
                     ON supply_uid = receive_supply_uid
+                LEFT JOIN fth.customers
+                    ON donor_uid = customer_uid
                 """ + where_clause + """
                 ORDER BY item_name;
             """
@@ -2209,6 +2464,108 @@ class getItems_brandon(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
+# SELECT * FROM (
+# 	SELECT pur.purchase_uid, json_items.*
+# 	FROM fth.purchases pur
+# 	JOIN JSON_TABLE(pur.items,
+# 		 '$[*]'
+# 		 COLUMNS (
+# 				  item_uid TEXT PATH '$.item_uid',
+# 				  business_uid TEXT PATH '$.itm_business_uid',
+# 				  item_name TEXT PATH '$.name',
+# 				  item_qty TEXT PATH '$.qty',
+# 				  item_image TEXT PATH '$.img',
+# 				  item_unit TEXT PATH '$.unit',
+# 				  item_price TEXT PATH '$.price'
+# 		 )
+# 	) json_items
+# 	ORDER BY item_uid, purchase_uid
+# ) as orders_inventory, (
+# 	SELECT *
+# 	FROM fth.supply2 s
+# 	LEFT JOIN fth.brand
+# 		ON brand_uid = sup_brand_uid
+# 	LEFT JOIN fth.items
+# 		ON item_uid = sup_item_uid
+# 	LEFT JOIN fth.receive
+# 		ON supply_uid = receive_supply_uid
+# 	WHERE receive_business_uid = '200-000069'
+# 	ORDER BY item_name
+# ) as initial_inventory
+# WHERE initial_inventory.sup_item_uid = orders_inventory.item_uid;
+# class get_purchases(Resource):
+#     def get(self):
+# class get_business_inventory(Resource):
+#     def get(self):
+#         try:
+#             conn = connect()
+#             id = request.args.get('business_uid')
+
+#             query = """
+#                 SELECT  FROM (
+# 	SELECT pur.purchase_uid, inv_items.*
+# 	FROM fth.purchases pur
+# 	JOIN JSON_TABLE(pur.items,
+# 		 '$[*]'
+# 		 COLUMNS (
+# 				  item_uid TEXT PATH '$.item_uid',
+# 				  business_uid TEXT PATH '$.itm_business_uid',
+# 				  item_name TEXT PATH '$.name',
+# 				  item_qty TEXT PATH '$.qty',
+# 				  item_image TEXT PATH '$.img',
+# 				  item_unit TEXT PATH '$.unit',
+# 				  item_price TEXT PATH '$.price'
+# 		 )
+# 	) inv_items
+#     WHERE business_uid = '200-000069'
+# 	ORDER BY item_uid, purchase_uid
+# ) as orders
+# LEFT JOIN (
+# 	SELECT *
+# 	FROM fth.supply2 s
+# 	LEFT JOIN fth.brand
+# 		ON brand_uid = sup_brand_uid
+# 	LEFT JOIN fth.items
+# 		ON item_uid = sup_item_uid
+# 	LEFT JOIN fth.receive
+# 		ON supply_uid = receive_supply_uid
+# 	WHERE receive_business_uid = '200-000069'
+# 	ORDER BY item_name
+# ) as init
+# ON orders.item_uid = init.sup_item_uid;
+#             """
+#             query = """
+#                 SELECT * FROM (
+#                     SELECT pur.purchase_uid, inv_items.*
+#                     FROM fth.purchases pur
+#                     JOIN JSON_TABLE(pur.items,
+#                         '$[*]'
+#                         COLUMNS (
+#                                 item_uid TEXT PATH '$.item_uid',
+#                                 business_uid TEXT PATH '$.itm_business_uid',
+#                                 item_name TEXT PATH '$.name',
+#                                 item_qty TEXT PATH '$.qty',
+#                                 item_image TEXT PATH '$.img',
+#                                 item_unit TEXT PATH '$.unit',
+#                                 item_price TEXT PATH '$.price'
+#                         )
+#                     ) inv_items
+#                     WHERE business_uid = '200-000069'
+#                     ORDER BY item_uid
+#                 ) AS invorders LEFT JOIN (
+#                     SELECT *
+#                     FROM fth.supply2
+#                 ) AS init
+#                 ON invorders.item_uid = invinit.sup_item_uid;
+#             """
+#             print("gbi query: ", query)
+
+#             return execute(query, 'get', conn)
+#         except:
+#             raise BadRequest('Request failed, please try again later.')
+#         finally:
+#             disconnect(conn)
 
 
 class ProduceByLocation_Prime(Resource):
@@ -2592,6 +2949,7 @@ class All_Menu_Date(Resource):
                     # CUSTOMER QUERY 4A: UPCOMING MENUS
                     SELECT DISTINCT menu_date
                     FROM fth.menu
+                    WHERE menu_date > curdate()
                     order by menu_date;
                     """
 
@@ -5429,12 +5787,17 @@ class get_units_list(Resource):
     def get(self):
         try:
             conn = connect()
+            # query = """
+            #         SELECT -- *
+            #         recipe_unit,type
+            #         FROM fth.conversion_units
+            #         ORDER BY type;   
+            #         """
             query = """
-                    SELECT -- *
-                    recipe_unit,type
-                    FROM fth.conversion_units
-                    ORDER BY type;   
-                    """
+                SELECT *
+                FROM fth.conversion_units
+                ORDER BY type;   
+            """
 
             items = execute(query, 'get', conn)
             return items
@@ -5701,8 +6064,227 @@ class add_supply(Resource):
                 detailed_unit = \'""" + detailed_unit + """\',
                 item_photo = \'""" + item_photo_url + """\', 
                 package_upc = \'""" + package_upc + """\';
-                    """
+            """
             
+            
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+class add_supply_brandon(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            print("in")
+            data = request.get_json(force=True)
+
+            # sup_brand_uid = request.form.get('sup_brand_uid')
+            # sup_item_uid = request.form.get('sup_item_uid')
+            # sup_desc = request.form.get('sup_desc')
+            # sup_type = "Package"
+            # sup_num = request.form.get('sup_num')
+            sup_measure = request.form.get('sup_measure')
+
+            
+
+            volume_num = request.form.get('volume_num')
+            volume_measure = request.form.get('volume_measure')
+            mass_num = request.form.get('mass_num')
+            mass_measure = request.form.get('mass_measure')
+            length_num = request.form.get('length_num')
+            length_measure = request.form.get('length_measure')
+            each_num = request.form.get('each_num')
+            each_measure = request.form.get('each_measure')
+            
+            # sup_unit = "Package"
+            # detailed_num = request.form.get('detailed_num')
+            detailed_measure = data.get('detailed_measure')
+            query_entries = tools().querify(data)
+
+            item_photo = request.files.get('item_photo') if request.files.get('item_photo') is not None else 'NULL'
+
+            # package_upc = request.form.get('package_upc')
+            
+            query = ["call fth.new_supply2_uid();"]
+            supplyID = execute(query[0], 'get', conn)
+            supplyUID = supplyID['result'][0]['new_id']
+
+            TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            key = "supply/" + str(supplyUID) + "_" + TimeStamp
+            item_photo_url = helper_upload_meal_img(item_photo, key)
+
+            qry = """
+                SELECT type 
+                FROM fth.conversion_units
+                WHERE recipe_unit = \'""" + detailed_measure + """\';
+            """
+
+            items = execute(qry, 'get', conn)
+            detailed_unit=items['result'][0]['type']
+           
+            # query = """
+            #     INSERT INTO fth.supply2
+            #     SET 
+                # supply_uid = \'""" + supplyUID + """\', 
+                # sup_created_at = \'""" + TimeStamp + """\',
+                # sup_brand_uid = \'""" + sup_brand_uid + """\',
+                # sup_item_uid = \'""" + sup_item_uid + """\', 
+                # sup_desc = \'""" + sup_desc + """\',
+                # sup_type = \'""" + sup_type + """\',
+                # sup_num = \'""" + sup_num + """\', 
+                # sup_measure = \'""" + sup_measure + """\',
+                # sup_unit = \'""" + sup_unit + """\',
+                # detailed_num = \'""" + detailed_num + """\', 
+                # detailed_measure = \'""" +  detailed_measure + """\',
+                # detailed_unit = \'""" + detailed_unit + """\',
+                # item_photo = \'""" + item_photo_url + """\', 
+                # package_upc = \'""" + package_upc + """\';
+            #         """
+            query = """
+                INSERT INTO 
+                    fth.supply2
+                SET 
+                    supply_uid = \'""" + supplyUID + """\', 
+                    sup_created_at = \'""" + TimeStamp + """\',
+                    detailed_unit = \'""" + detailed_unit + """\',
+                    item_photo = \'""" + item_photo_url + """\',
+                    sup_measure = \'""" + sup_measure + """\',
+                    volume_num = \'""" + volume_num + """\',
+                    volume_measure = \'""" + volume_measure + """\',
+                    mass_num = \'""" + mass_num + """\',
+                    mass_measure = \'""" + mass_measure + """\',
+                    length_num = \'""" + length_num + """\',
+                    length_measure = \'""" + length_measure + """\',
+                    each_num = \'""" + each_num + """\',
+                    each_measure = \'""" + each_measure + """\';
+            """
+            print("(add_supply_brandon) query: ", query)
+            
+            items = execute(query, 'post', conn)
+            return items
+
+        except:
+            raise BadRequest('Request failed, please try again later.')
+
+class add_supply_brandon2(Resource):
+    def post(self):
+        try:
+            conn = connect()
+
+            print("asb 1")
+
+            sup_brand_uid = request.form.get('sup_brand_uid')
+            sup_item_uid = request.form.get('sup_item_uid')
+
+            volume_num = request.form.get('volume_num')
+            volume_measure = request.form.get('volume_measure')
+            mass_num = request.form.get('mass_num')
+            mass_measure = request.form.get('mass_measure')
+            length_num = request.form.get('length_num')
+            length_measure = request.form.get('length_measure')
+            each_num = request.form.get('each_num')
+            each_measure = request.form.get('each_measure')
+            print("volume: ", volume_num, volume_measure)
+            print("each: ", each_num, each_measure)
+
+            print("asb 2")
+
+            # sup_desc = request.form.get('sup_desc')
+            # sup_type = "Package"
+            # sup_num = request.form.get('sup_num')
+            # sup_measure = request.form.get('sup_measure')
+            # sup_unit = "Package"
+            # detailed_num = request.form.get('detailed_num')
+            # detailed_measure = request.form.get('detailed_measure')
+            item_photo = request.files.get('item_photo') if request.files.get(
+                'item_photo') is not None else 'NULL'
+            package_upc = request.form.get('package_upc')
+            
+            query = ["call fth.new_supply2_uid();"]
+            supplyID = execute(query[0], 'get', conn)
+            supplyUID = supplyID['result'][0]['new_id']
+
+            print("asb 2.1")
+
+            TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            print("asb 2.2")
+            key = "supply/" + str(supplyUID) + "_" + TimeStamp
+            print("asb 2.3")
+            item_photo_url = helper_upload_meal_img(item_photo, key)
+
+            print("asb 3")
+
+            # qry = """
+            #     SELECT type 
+            #     FROM fth.conversion_units
+            #     WHERE 
+            #         recipe_unit = \'""" + detailed_measure + """\';
+            # """
+
+            # items = execute(qry, 'get', conn)
+            # detailed_unit=items['result'][0]['type']
+           
+            # query = """
+            #     INSERT INTO fth.supply2
+            #     SET 
+            #         supply_uid = \'""" + supplyUID + """\', 
+            #         sup_created_at = \'""" + TimeStamp + """\',
+            #         sup_brand_uid = \'""" + sup_brand_uid + """\',
+            #         sup_item_uid = \'""" + sup_item_uid + """\', 
+            #         item_photo = \'""" + item_photo_url + """\', 
+            #         package_upc = \'""" + package_upc + """\',
+            #         volume_num = \'""" + volume_num + """\',
+            #         volume_measure = \'""" + volume_measure + """\',
+            #         mass_num = \'""" + mass_num + """\',
+            #         mass_measure = \'""" + mass_measure + """\',
+            #         length_num = \'""" + length_num + """\',
+            #         length_measure = \'""" + length_measure  + """\',
+            #         each_num = \'""" + each_num + """\',
+            #         each_measure = \'""" + each_measure + """\';
+            # """
+            query = """
+                INSERT INTO fth.supply2
+                SET 
+                    supply_uid = \'""" + supplyUID + """\', 
+                    sup_created_at = \'""" + TimeStamp + """\',
+                    sup_brand_uid = \'""" + sup_brand_uid + """\',
+                    sup_item_uid = \'""" + sup_item_uid + """\', 
+                    item_photo = \'""" + item_photo_url + """\', 
+            """
+
+            if volume_num is not None and volume_measure is not None:
+                query = query + """
+                    volume_num = \'""" + volume_num + """\',
+                    volume_measure = \'""" + volume_measure + """\',
+                """
+
+            if mass_num is not None and mass_measure is not None:
+                query = query + """
+                    mass_num = \'""" + mass_num + """\',
+                    mass_measure = \'""" + mass_measure + """\',
+                """
+
+            if length_num is not None and length_measure is not None:
+                query = query + """
+                    length_num = \'""" + length_num + """\',
+                    length_measure = \'""" + length_measure  + """\',
+                """
+
+            if each_num is not None and each_measure is not None:
+                query = query + """
+                    each_num = \'""" + each_num + """\',
+                    each_measure = \'""" + each_measure + """\',
+                """
+                    
+            query = query + """
+                    package_upc = \'""" + package_upc + """\';
+            """
+
+            print("asb query: ", query)
+
+            print("asb 4")
             
             items = execute(query, 'post', conn)
             return items
@@ -5874,15 +6456,6 @@ class add_donation_brandon(Resource):
         try:
             conn = connect()
             data = request.get_json(force=True)
-
-            # print("in")
-            # receive_supply_uid = data.get('receive_supply_uid')
-            # receive_business_uid = data.get('receive_business_uid')
-            # donation_type = data.get('donation_type')
-            # qty_received = data.get('qty_received')
-            # receive_date = request.form.get('receive_date')
-            # available_date = request.form.get('available_date')
-            # exp_date = request.form.get('exp_date')
             
             query = ["call fth.new_receive_uid();"]
             receiveID = execute(query[0], 'get', conn)
@@ -5892,22 +6465,9 @@ class add_donation_brandon(Resource):
 
             query = "INSERT INTO fth.receive\nSET"
             query = query + "\n\treceive_uid = '" + receiveUID + "',"
-            query = query + query_entries
+            query = query + query_entries + ";"
 
             print("========== ad query ==========")
-
-            # query = """
-            #     INSERT INTO fth.receive
-            #     SET 
-            #     receive_uid = \'""" + receiveUID + """\', 
-                # receive_supply_uid = \'""" + receive_supply_uid + """\',
-                # receive_business_uid = \'""" + receive_business_uid + """\', 
-                # donation_type = \'""" + donation_type + """\',
-                # qty_received = \'""" + qty_received + """\',
-                # receive_date = \'""" + receive_date + """\',
-                # available_date = \'""" + available_date + """\', 
-                # exp_date = \'""" + exp_date + """\';
-            #         """
             
             print(query)
             # return "ad_test"
@@ -6253,7 +6813,7 @@ class food_bank(Resource):
             query = query + "\n\tbusiness_uid = '" + businessUID + "',"
             query = query + "\n\tbusiness_created_at = '" + TimeStamp + "',"
             query = query + "\n\tbusiness_type = 'Food Bank',"
-            query = query + query_entries
+            query = query + query_entries + ";"
 
             print("\n==========| QUERY START |==========")
             print(query)
@@ -10853,10 +11413,10 @@ class get_orders(Resource):
                         lplpibr_jt_item_name,
                         lplpibr_jt_qty,
                         lplpibr_jt_price
-                    from customers
+                    from fth.customers
                     inner join fth.lplp_items_by_row
                     on customer_uid = lplpibr_customer_uid
-                    where lplpibr_jt_business_uid = "200-000002";
+                    where lplpibr_jt_business_uid = "200-000069";
                     """
             items = execute(query, 'get', conn)
             print(items["code"])
@@ -10872,6 +11432,30 @@ class get_orders(Resource):
                 items['code'] = 404
                 return items
 
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class get_orders_brandon(Resource):
+
+    def get(self):
+        try:
+            conn = connect()
+            business_uid = request.args.get('business_uid')
+            customer_uid = request.args.get('customer_uid')
+
+            where_clause = ";"
+            if business_uid is not None and customer_uid is None: 
+                where_clause = " WHERE pur_business_uid = '" + business_uid + "';"
+            elif business_uid is None and customer_uid is not None: 
+                where_clause = " WHERE pur_customer_uid = '" + customer_uid + "';"
+            elif business_uid is not None and customer_uid is not None:
+                where_clause = " WHERE pur_business_uid = '" + business_uid + "' AND pur_customer_uid = '" + customer_uid + "';"
+
+            query = "SELECT * FROM fth.purchases" + where_clause
+
+            return simple_get_execute(query, __class__.__name__, conn)
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -15778,7 +16362,7 @@ class tools(Resource):
 
             endline = ","
             if index == len(data):
-                endline = ";"
+                endline = ""
 
             if data[val] is None:
                 # query_line = "\n\t" + val + " = NULL" + endline
@@ -15796,6 +16380,43 @@ class tools(Resource):
         print("==========|  QUERIFY END  |==========\n")
 
         return query_string
+
+    def generate_filter(self, data):
+
+        print("(generate_filter) data: ", data)
+
+        where_clause = ""
+        for index, key in enumerate(data):
+            print("(generate_filter) index: ", index)
+            print("(generate_filter) key: ", key)
+            print("(generate_filter) val: ", data[key])
+
+            print("(generate_filter) 1")
+            if index == 0:
+                print("(generate_filter) 2")
+                where_clause = "WHERE " + key + " = '" + data[key] + "'"
+                print("(generate_filter) 3")
+            else:
+                print("(generate_filter) 4")
+                where_clause = where_clause + " AND " + key + " = '" + data[key] + "'"
+                print("(generate_filter) 5")
+            print("(generate_filter) 6")
+
+        print("(generate_filter) result: ", where_clause)
+        return where_clause
+
+        # id = request.args.get('business_uid')
+        # item_type = request.args.get('item_type')
+        # print("gib id: ", id)
+
+        # where_clause = ""
+        # if id is not None and item_type is None: 
+        #     where_clause = "WHERE receive_business_uid = '" + id + "'"
+        # elif id is None and item_type is not None: 
+        #     where_clause = "WHERE item_type = '" + item_type + "'"
+        # elif id is not None and item_type is not None:
+        #     where_clause = "WHERE receive_business_uid = '" + id + "' AND item_type = '" + item_type + "'"
+
 
 
 class Households(Resource):
@@ -15833,7 +16454,7 @@ class Households(Resource):
             INSERT INTO fth.households
             SET
                     household_uid = '""" + household_uid + """',
-            """ + query_entries
+            """ + query_entries + ";"
 
             print("\n==========| QUERY START |==========")
             print(query)
@@ -15860,6 +16481,24 @@ class faqs(Resource):
             query = """
                 SELECT * FROM fth.faqs;
             """
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class Customers(Resource):
+    def get(self):
+        try:
+            conn = connect()
+            role = request.args.get('role')
+
+            where_clause = ";"
+            if role is not None:
+                where_clause = " WHERE role = '" + role + "';"
+
+            query = "SELECT * FROM fth.customers" + where_clause
+
             return simple_get_execute(query, __class__.__name__, conn)
         except:
             raise BadRequest('Request failed, please try again later.')
@@ -16076,7 +16715,8 @@ api.add_resource(update_guid_notification,
 api.add_resource(supply_items,'/api/v2/supply_items')
 api.add_resource(add_brand,'/api/v2/add_brand')
 api.add_resource(add_items,'/api/v2/add_items')
-api.add_resource(add_supply,'/api/v2/add_supply')
+# api.add_resource(add_supply,'/api/v2/add_supply')
+api.add_resource(add_supply_brandon2,'/api/v2/add_supply')
 api.add_resource(add_tags,'/api/v2/add_tags')
 api.add_resource(add_types,'/api/v2/add_types')
 api.add_resource(add_non_specific_unit,'/api/v2/add_non_specific_unit')
@@ -16106,6 +16746,7 @@ api.add_resource(add_measure,'/api/v2/add_measure')
 #---Items page ---#
 # api.add_resource(getItems, '/api/v2/getItems')
 api.add_resource(getItems_brandon, '/api/v2/getItems')
+# api.add_resource(get_business_inventory, '/api/v2/get_business_inventory')
 
 #---Profile page ---#
 
@@ -16151,7 +16792,8 @@ api.add_resource(get_recipes, '/api/v2/get_recipes/<string:meal_id>')
 
 api.add_resource(update_recipe, '/api/v2/update_recipe')
 
-api.add_resource(get_orders, '/api/v2/get_orders')
+# api.add_resource(get_orders, '/api/v2/get_orders')
+api.add_resource(get_orders_brandon, '/api/v2/get_orders')
 
 api.add_resource(get_supplys_by_date, '/api/v2/get_supplys_by_date')
 
@@ -16204,7 +16846,8 @@ api.add_resource(Get_Tags_With_GUID_iOS,
 # no need to verify below
 # api.add_resource(update_all_items, '/api/v2/update_all_items/<string:uid>')
 
-api.add_resource(createAccount, '/api/v2/createAccount')
+# api.add_resource(createAccount, '/api/v2/createAccount')
+api.add_resource(createAccount_fth, '/api/v2/createAccount')
 
 # delete account endpoint
 api.add_resource(deleteAccount, '/api/v2/deleteAccount')
@@ -16329,7 +16972,7 @@ api.add_resource(Stripe_Intent, '/api/v2/Stripe_Intent')
 
 api.add_resource(stripe_key, '/api/v2/stripe_key/<string:desc>')
 
-api.add_resource(createAccount2, '/api/v2/createAccount2')
+# api.add_resource(createAccount2, '/api/v2/createAccount2')
 
 api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
 
@@ -16409,6 +17052,8 @@ api.add_resource(stripe_transaction, '/api/v2/stripe_transaction')
 api.add_resource(test_endpoint, '/api/v2/test_endpoint')
 
 api.add_resource(Households, '/api/v2/households')
+
+api.add_resource(Customers, '/api/v2/customers')
 
 api.add_resource(faqs, '/api/v2/faqs')
 
