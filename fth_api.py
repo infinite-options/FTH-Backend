@@ -2427,7 +2427,7 @@ class getItems_brandon(Resource):
             # elif id is not None and item_type is not None:
             #     where_clause = "WHERE receive_business_uid = '" + id + "' AND item_type = '" + item_type + "'"
 
-            # tools().filter
+            # GENERATES WHERE CLAUSE BASED ON ARGUMENTS IN URL
             where_clause = tools().generate_filter(request.args)
             print("(gib) where_clause: ", where_clause)
 
@@ -2457,6 +2457,20 @@ class getItems_brandon(Resource):
             #     """ + where_clause + """
             #     ORDER BY item_name;
             # """
+            # query = """
+            #     SELECT * 
+            #     FROM fth.supply2
+            #     LEFT JOIN fth.brand
+            #         ON brand_uid = sup_brand_uid
+            #     LEFT JOIN fth.items
+            #         ON item_uid = sup_item_uid
+            #     LEFT JOIN fth.receive
+            #         ON supply_uid = receive_supply_uid
+            #     LEFT JOIN fth.customers
+            #         ON donor_uid = customer_uid
+            #     """ + where_clause + """
+            #     ORDER BY item_name;
+            # """
             query = """
                 SELECT * 
                 FROM fth.supply2
@@ -2472,6 +2486,87 @@ class getItems_brandon(Resource):
                 ORDER BY item_name;
             """
             print("gib query: ", query)
+
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+class Distribution_Options(Resource):
+
+    def get(self):
+        try:
+            conn = connect()
+
+            # GENERATES WHERE CLAUSE BASED ON ARGUMENTS IN URL
+            where_clause = tools().generate_filter(request.args)
+            print("(gib) where_clause: ", where_clause)
+
+            query = """
+                SELECT * 
+                FROM fth.distribution_options
+                """ + where_clause + """;
+            """
+            print("gdo query: ", query)
+
+            return simple_get_execute(query, __class__.__name__, conn)
+        except:
+            raise BadRequest('Request failed, please try again later.')
+        finally:
+            disconnect(conn)
+
+    def post(self):
+        try:
+            conn = connect()
+
+            # GENERATES WHERE CLAUSE BASED ON ARGUMENTS IN URL
+            # where_clause = tools().generate_filter(request.args)
+            # print("(gib) where_clause: ", where_clause)
+            # uid = request.args.get('dist_options_uid')
+
+            # data = request.get_json(force=True)
+
+            # uid = data['dist_options_uid']
+            # dist_num = data['dist_options_uid']
+            # dist_measure = data['dist_options_uid']
+            # dist_unit = data['dist_options_uid']
+            # dist_ = data.get('dist_options_uid')
+            uid = request.form.get('dist_options_uid')
+            dist_num = request.form.get('dist_num')
+            dist_measure = request.form.get('dist_measure')
+            dist_unit = request.form.get('dist_unit')
+            item_photo = request.files.get('dist_item_photo') if request.files.get(
+                'item_photo') is not None else 'NULL'
+
+            TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            key = "supply/" + str(uid) + "_" + TimeStamp
+            item_photo_url = helper_upload_meal_img(item_photo, key)
+
+            if item_photo == 'NULL':
+                query = """
+                    UPDATE 
+                        fth.distribution_options
+                    SET 
+                        dist_num = \'""" + dist_num + """\',
+                        dist_measure = \'""" + dist_measure + """\',
+                        dist_unit = \'""" + dist_unit + """\'
+                    WHERE
+                        dist_options_uid = \'""" + uid + """\',
+                """
+            else:
+                query = """
+                    UPDATE 
+                        fth.distribution_options
+                    SET 
+                        dist_num = \'""" + dist_num + """\',
+                        dist_measure = \'""" + dist_measure + """\',
+                        dist_unit = \'""" + dist_unit + """\',
+                        dist_item_photo = \'""" + item_photo_url + """\'
+                    WHERE
+                        dist_options_uid = \'""" + uid + """\',
+                """
+            print("gdo query: ", query)
 
             return simple_get_execute(query, __class__.__name__, conn)
         except:
@@ -17227,6 +17322,8 @@ api.add_resource(stripe_transaction, '/api/v2/stripe_transaction')
 api.add_resource(test_endpoint, '/api/v2/test_endpoint')
 
 api.add_resource(Households, '/api/v2/households')
+
+api.add_resource(Distribution_Options, '/api/v2/Distribution_Options')
 
 api.add_resource(Customers, '/api/v2/customers')
 
