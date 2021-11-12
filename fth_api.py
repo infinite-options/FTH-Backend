@@ -2429,7 +2429,7 @@ class getItems_brandon(Resource):
 
             # tools().filter
             where_clause = tools().generate_filter(request.args)
-            print("(gib) where_clause")
+            print("(gib) where_clause: ", where_clause)
 
             # query = """
             #     SELECT *
@@ -2443,9 +2443,23 @@ class getItems_brandon(Resource):
             #     """ + where_clause + """
             #     ORDER BY item_name;
             # """
+            # query = """
+            #     SELECT *
+            #     FROM fth.supply2 s
+            #     LEFT JOIN fth.brand
+            #         ON brand_uid = sup_brand_uid
+            #     LEFT JOIN fth.items
+            #         ON item_uid = sup_item_uid
+            #     LEFT JOIN fth.receive
+            #         ON supply_uid = receive_supply_uid
+            #     LEFT JOIN fth.customers
+            #         ON donor_uid = customer_uid
+            #     """ + where_clause + """
+            #     ORDER BY item_name;
+            # """
             query = """
-                SELECT *
-                FROM fth.supply2 s
+                SELECT * 
+                FROM fth.supply2
                 LEFT JOIN fth.brand
                     ON brand_uid = sup_brand_uid
                 LEFT JOIN fth.items
@@ -6177,6 +6191,8 @@ class add_supply_brandon2(Resource):
 
             sup_brand_uid = request.form.get('sup_brand_uid')
             sup_item_uid = request.form.get('sup_item_uid')
+            sup_measure = request.form.get('sup_measure')
+            sup_desc = request.form.get('sup_desc')
 
             volume_num = request.form.get('volume_num')
             volume_measure = request.form.get('volume_measure')
@@ -6244,6 +6260,51 @@ class add_supply_brandon2(Resource):
             #         each_num = \'""" + each_num + """\',
             #         each_measure = \'""" + each_measure + """\';
             # """
+            # queries = ['''UPDATE fth.purchases 
+            #                 SET delivery_first_name= "''' + first_name + '''",
+            #                     delivery_last_name = "''' + last_name + '''",
+            #                     delivery_phone_num = "''' + phone + '''",
+            #                     delivery_email = "''' + email + '''", 
+            #                     delivery_address = "''' + address + '''",
+            #                     delivery_unit = "''' + unit + '''",
+            #                     delivery_city = "''' + city + '''",
+            #                     delivery_state = "''' + state + '''",
+            #                     delivery_zip = "''' + zip + '''",
+            #                     delivery_instructions = "''' + delivery_info + '''"
+            #                 WHERE purchase_uid = "''' + purchase_uid + '";',
+            #            ''' UPDATE fth.payments
+            #                 SET cc_num = "''' + cc_num + '''",
+            #                     cc_cvv = "''' + cc_cvv + '''",
+            #                     cc_zip = "''' + cc_zip + '''",
+            #                     cc_exp_date = "''' + cc_exp_date + '''"
+            #                 WHERE pay_purchase_uid = "''' + purchase_uid + '";'
+
+            #            ]
+            # # print("3")
+            # res = simple_post_execute(
+            #     queries, ["UPDATE PURCHASE'S INFO", "UPDATE PAYMENT'S INFO"], conn)
+            distUID_query = ["call fth.new_distribution_options_uid();"]
+            distOptionsID = execute(distUID_query[0], 'get', conn)
+            print("distOptionsID: ", distOptionsID)
+            distOptionsUID = distOptionsID['result'][0]['new_id']
+            print("distOptionsUID: ", distOptionsUID)
+            
+            # qry = """
+            #     INSERT INTO fth.distribution_options
+            #     SET 
+            #     dist_options_uid = \'""" + distOptionsUID + """\',
+            #     dist_supply_uid = \'""" + supplyUID + """\',
+            #     dist_type = 'Package',
+            #     dist_num = \'""" + dist_num + """\',
+            #     dist_measure = \'""" + dist_measure + """\',
+            #     dist_unit = \'""" + dist_unit + """\',
+            #     dist_item_photo = \'""" + dist_item_photo_url + """\';
+            # """
+            # dist_options = []
+
+            queries = []
+            query_names = ["ADD NEW SUPPLY"]
+
             query = """
                 INSERT INTO fth.supply2
                 SET 
@@ -6251,42 +6312,156 @@ class add_supply_brandon2(Resource):
                     sup_created_at = \'""" + TimeStamp + """\',
                     sup_brand_uid = \'""" + sup_brand_uid + """\',
                     sup_item_uid = \'""" + sup_item_uid + """\', 
-                    item_photo = \'""" + item_photo_url + """\', 
+                    sup_measure = \'""" + sup_measure + """\',
+                    sup_desc = \'""" + sup_desc + """\', 
+                    item_photo = \'""" + item_photo_url + """\',
             """
 
+            volume_query = None
             if volume_num is not None and volume_measure is not None:
                 query = query + """
                     volume_num = \'""" + volume_num + """\',
                     volume_measure = \'""" + volume_measure + """\',
                 """
+                volume_query = """
+                    INSERT INTO 
+                        fth.distribution_options
+                    SET 
+                        dist_supply_uid = \'""" + supplyUID + """\',
+                        dist_type = 'Package',
+                        dist_num = \'""" + volume_num + """\',
+                        dist_measure = \'""" + volume_measure + """\',
+                        dist_unit = 'volume',
+                        dist_item_photo = \'""" + item_photo_url + """\',
+                """
 
+            mass_query = None
             if mass_num is not None and mass_measure is not None:
                 query = query + """
                     mass_num = \'""" + mass_num + """\',
                     mass_measure = \'""" + mass_measure + """\',
                 """
+                mass_query = """
+                    INSERT INTO 
+                        fth.distribution_options
+                    SET 
+                        dist_supply_uid = \'""" + supplyUID + """\',
+                        dist_type = 'Package',
+                        dist_num = \'""" + mass_num + """\',
+                        dist_measure = \'""" + mass_measure + """\',
+                        dist_unit = 'volume',
+                        dist_item_photo = \'""" + item_photo_url + """\',
+                """
 
+            length_query = None
             if length_num is not None and length_measure is not None:
                 query = query + """
                     length_num = \'""" + length_num + """\',
                     length_measure = \'""" + length_measure  + """\',
                 """
+                length_query = """
+                    INSERT INTO 
+                        fth.distribution_options
+                    SET 
+                        dist_supply_uid = \'""" + supplyUID + """\',
+                        dist_type = 'Package',
+                        dist_num = \'""" + length_num + """\',
+                        dist_measure = \'""" + length_measure + """\',
+                        dist_unit = 'volume',
+                        dist_item_photo = \'""" + item_photo_url + """\',
+                """
 
+            each_query = None
             if each_num is not None and each_measure is not None:
                 query = query + """
                     each_num = \'""" + each_num + """\',
                     each_measure = \'""" + each_measure + """\',
+                """
+                each_query = """
+                    INSERT INTO 
+                        fth.distribution_options
+                    SET 
+                        dist_supply_uid = \'""" + supplyUID + """\',
+                        dist_type = 'Package',
+                        dist_num = \'""" + each_num + """\',
+                        dist_measure = \'""" + each_measure + """\',
+                        dist_unit = 'volume',
+                        dist_item_photo = \'""" + item_photo_url + """\',
                 """
                     
             query = query + """
                     package_upc = \'""" + package_upc + """\';
             """
 
-            print("asb query: ", query)
+            queries.append(query)
 
-            print("asb 4")
+            distUIDs_needed = 0
+            # get appropriate number of distribution UIDS
+            if volume_query is not None:
+                distUIDs_needed = distUIDs_needed + 1
+            if mass_query is not None:
+                distUIDs_needed = distUIDs_needed + 1
+            if length_query is not None:
+                distUIDs_needed = distUIDs_needed + 1
+            if each_query is not None:
+                distUIDs_needed = distUIDs_needed + 1
             
-            items = execute(query, 'post', conn)
+            uid_arr = []
+            for i in range(distUIDs_needed):
+                print("UID substring: ", distOptionsUID[4:])
+                print("i: ", i)
+                int_uid = int(distOptionsUID[4:]) + i
+                str_uid = str(int_uid)
+                zeroes2pad = 6-len(str_uid)
+                newUidStr = ""
+                for j in range(zeroes2pad):
+                    newUidStr = newUidStr + "0"
+                newUidStr = "340-" + newUidStr + str_uid
+                uid_arr.append(newUidStr)
+            print("uid_arr: ", uid_arr)
+
+            if volume_query is not None:
+                volume_query = volume_query + """
+                    dist_options_uid = '""" + uid_arr.pop() + """';
+                """
+                queries.append(volume_query)
+                query_names.append("INSERT DIST OPTION VOLUME")
+
+            if mass_query is not None:
+                mass_query = mass_query + """
+                    dist_options_uid = '""" + uid_arr.pop() + """';
+                """
+                queries.append(mass_query)
+                query_names.append("INSERT DIST OPTION MASS")
+
+            if length_query is not None:
+                length_query = length_query + """
+                    dist_options_uid = '""" + uid_arr.pop() + """';
+                """
+                queries.append(length_query)
+                query_names.append("INSERT DIST OPTION LENGTH")
+
+            if each_query is not None:
+                each_query = each_query + """
+                    dist_options_uid = '""" + uid_arr.pop() + """';
+                """
+                queries.append(each_query)
+                query_names.append("INSERT DIST OPTION EACH")
+
+            print("volume query: ", volume_query)
+            print("mass query: ", mass_query)
+            print("length query: ", length_query)
+            print("each query: ", each_query)
+
+            print("supply query: ", query)
+
+            # print("asb 4")
+
+            # return 'add_supply_test'
+            
+            # items = execute(query, 'post', conn)
+
+            items = simple_post_execute(queries, query_names, conn)
             return items
 
         except:
