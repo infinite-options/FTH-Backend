@@ -2532,6 +2532,7 @@ class Distribution_Options(Resource):
             # dist_measure = data['dist_options_uid']
             # dist_unit = data['dist_options_uid']
             # dist_ = data.get('dist_options_uid')
+            print("DO1")
             uid = request.form.get('dist_options_uid')
             dist_num = request.form.get('dist_num')
             dist_measure = request.form.get('dist_measure')
@@ -2539,11 +2540,14 @@ class Distribution_Options(Resource):
             item_photo = request.files.get('dist_item_photo') if request.files.get(
                 'item_photo') is not None else 'NULL'
 
-            TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            key = "supply/" + str(uid) + "_" + TimeStamp
-            item_photo_url = helper_upload_meal_img(item_photo, key)
+            print("DO2")
+
+
+
 
             if item_photo == 'NULL':
+                print("DO3")
+
                 query = """
                     UPDATE 
                         fth.distribution_options
@@ -2552,9 +2556,14 @@ class Distribution_Options(Resource):
                         dist_measure = \'""" + dist_measure + """\',
                         dist_unit = \'""" + dist_unit + """\'
                     WHERE
-                        dist_options_uid = \'""" + uid + """\',
+                        dist_options_uid = \'""" + uid + """\';
                 """
             else:
+                print("DO4")
+                TimeStamp = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                key = "supply/" + str(uid) + "_" + TimeStamp
+                item_photo_url = helper_upload_meal_img(item_photo, key)
+                print("DO5")
                 query = """
                     UPDATE 
                         fth.distribution_options
@@ -2564,11 +2573,12 @@ class Distribution_Options(Resource):
                         dist_unit = \'""" + dist_unit + """\',
                         dist_item_photo = \'""" + item_photo_url + """\'
                     WHERE
-                        dist_options_uid = \'""" + uid + """\',
+                        dist_options_uid = \'""" + uid + """\';
                 """
+            print("DO6")
             print("gdo query: ", query)
 
-            return simple_get_execute(query, __class__.__name__, conn)
+            return simple_post_execute([query], [__class__.__name__], conn)
         except:
             raise BadRequest('Request failed, please try again later.')
         finally:
@@ -6444,7 +6454,7 @@ class add_supply_brandon2(Resource):
                         dist_type = 'Package',
                         dist_num = \'""" + mass_num + """\',
                         dist_measure = \'""" + mass_measure + """\',
-                        dist_unit = 'volume',
+                        dist_unit = 'mass',
                         dist_item_photo = \'""" + item_photo_url + """\',
                 """
 
@@ -6462,7 +6472,7 @@ class add_supply_brandon2(Resource):
                         dist_type = 'Package',
                         dist_num = \'""" + length_num + """\',
                         dist_measure = \'""" + length_measure + """\',
-                        dist_unit = 'volume',
+                        dist_unit = 'length',
                         dist_item_photo = \'""" + item_photo_url + """\',
                 """
 
@@ -6480,7 +6490,7 @@ class add_supply_brandon2(Resource):
                         dist_type = 'Package',
                         dist_num = \'""" + each_num + """\',
                         dist_measure = \'""" + each_measure + """\',
-                        dist_unit = 'volume',
+                        dist_unit = 'each',
                         dist_item_photo = \'""" + item_photo_url + """\',
                 """
                     
