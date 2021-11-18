@@ -45,7 +45,7 @@ import stripe
 import binascii
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-import geopy.distance
+# import geopy.distance
 import os
 s3 = boto3.client('s3')
 
@@ -2230,7 +2230,7 @@ class AccountSalt(Resource):
             items['code'] = 200
             return items
         except:
-            raise BadRequest('Request failed, please try again later.')
+            raise BadRequest('Account Salt Request failed, please try again later.')
         finally:
             disconnect(conn)
 
@@ -7246,7 +7246,9 @@ class business_details_update(Resource):
     def post(self, action):
         try:
             conn = connect()
+            print("In business_details_update")
             data = request.get_json(force=True)
+            print(data)
 
             if action == 'Get':
                 query = """ 
