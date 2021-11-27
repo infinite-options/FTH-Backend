@@ -184,7 +184,8 @@ def execute(sql, cmd, conn, skipSerialization=False):
                 response['message'] = 'Request failed. Unknown or ambiguous instruction given for MySQL command.'
                 # Return status code of 480 for unknown HTTP method
                 response['code'] = 480
-    except:
+    except Exception as e:
+        print(e)
         response['message'] = 'Request failed, could not execute MySQL command.'
         # Return status code of 490 for unsuccessful HTTP request
         response['code'] = 490
@@ -1435,15 +1436,16 @@ class createAccount_fth(Resource):
             elif id_type.upper() == 'PHONE':
                 print("(cafth) 3.2.2")
                 id_value = phone
+                print(id_type, id_value)
 
                 query_same_id = """
                     SELECT 
                         role, 
                         customer_uid,
                         id_type,
-                        customer_phone_number
+                        customer_phone_num
                     FROM fth.customers
-                    WHERE customer_phone_number = \'""" + id_value + """\'
+                    WHERE customer_phone_num = \'""" + id_value + """\'
                     AND id_type = \'""" + id_type + """\';
                 """
 
@@ -1452,6 +1454,7 @@ class createAccount_fth(Resource):
             elif id_type.upper() == 'DRIVER LICENSE' or id_type.upper() == 'PASSPORT' or id_type.upper() == 'SOCIAL SECURITY' or id_type.upper() == 'REAL ID':
                 print("(cafth) 3.2.3")
                 id_value = id_number
+                print(id_type, id_value)
 
                 query_same_id = """
                     SELECT 
