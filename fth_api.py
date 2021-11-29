@@ -161,12 +161,12 @@ def disconnect(conn):
 # Set cmd parameter to 'get' or 'post'
 # Set conn parameter to connection object
 # OPTIONAL: Set skipSerialization to True to skip default JSON response serialization
-def execute(sql, cmd, conn, skipSerialization=False):
+def execute(sql, cmd, conn, skipSerialization=False, args=None):
     print("==> Execute Query: ", cmd)
     response = {}
     try:
         with conn.cursor() as cur:
-            cur.execute(sql)
+            cur.execute(sql, args)
             if cmd == 'get':
                 result = cur.fetchall()
                 response['message'] = 'Successfully executed get SQL query.'
@@ -222,6 +222,18 @@ def serializeResponse(response):
     except:
         raise Exception("Bad query JSON")
 
+def insert(table, obj, conn):
+    response = {}
+    try:
+        query = f'INSERT INTO {table} SET '
+        for i, key in enumerate(obj.keys()):
+            query += f'{key} = %({key})s'
+            if i != len(obj.keys()) - 1:
+                query += ', '
+        response = execute(query, 'post', conn, args=obj)
+    except Exception as e:
+        print(e)
+    return response
 
 # RUN STORED PROCEDURES
 def get_new_paymentID(conn):
@@ -248,6 +260,15 @@ def get_new_id(query, name, conn):
     response['result'] = new_id['result'][0]['new_id']
     return response, 200
 
+def get_new_customerID(conn):
+    get_user_id_query = "CALL new_customer_uid();"
+    user_id_response = execute(get_user_id_query, 'get', conn)
+    return user_id_response['result'][0]['new_id']
+
+def get_new_householdID(conn):
+    get_user_id_query = "CALL new_household_uid();"
+    user_id_response = execute(get_user_id_query, 'get', conn)
+    return user_id_response['result'][0]['new_id']
 
 def simple_get_execute(query, name_to_show, conn):
     print("Start simple_get_execute")
@@ -1305,6 +1326,84 @@ class createAccount2(Resource):
             raise BadRequest('Request failed, please try again later.')
         finally:
             disconnect(conn)
+
+class createAccount3(Resource):
+    def post(self):
+        items = {}
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            customer_uid = get_new_customerID(conn)
+            newCustomer = {
+                'customer_uid': customer_uid,
+                'customer_created_at': current_time,
+                'customer_first_name': data.get('first_name', ''),
+                'customer_last_name': data.get('last_name', ''),
+                'customer_phone_num': data.get('phone_number', ''),
+                'id_type': data.get('id_type', ''),
+                'id_number': data.get('id_number', ''),
+                'customer_email': data.get('email', ''),
+                'customer_address': data.get('address', ''),
+                'customer_unit': data.get('unit', ''),
+                'customer_city': data.get('city', ''),
+                'customer_state': data.get('state', ''),
+                'customer_zip': data.get('zip_code', ''),
+                'customer_lat': data.get('latitude', ''),
+                'customer_long': data.get('longitude', ''),
+                'password_salt': current_time,
+                'password_hashed': sha512((data['password'] + current_time).encode()).hexdigest(),
+                'password_algorithm': 'SHA512',
+                'referral_source': data.get('referral_source', ''),
+                'role': data.get('role', ''),
+                'user_social_media': data.get('user_social_media', ''),
+                'user_access_token': data.get('user_access_token', ''),
+                'social_timestamp': data.get('social_timestamp', ''),
+                'user_refresh_token': data.get('user_refresh_token', ''),
+                'mobile_access_token': data.get('mobile_access_token', ''),
+                'mobile_refresh_token': data.get('mobile_refresh_token', ''),
+                'social_id': data.get('social_id', '')
+            }
+            response = insert('fth.customers', newCustomer, conn)
+            print(response)
+            items['message'] = 'Signup successful'
+            items['code'] = 200
+            items['data'] = {'customer_uid': customer_uid}
+            return items
+        except Exception as e:
+            print(e)
+            items['message'] = 'Signup error'
+            items['error'] = str(e)
+            items['code'] = 500
+            return items
+
+
+class clientForm(Resource):
+    def post(self):
+        try:
+            conn = connect()
+            data = request.get_json(force=True)
+            newHousehold = {
+                'household_uid': get_new_householdID(conn),
+                'customer_uid': data.get('customer_uid', ''),
+                'name': data.get('name', ''),
+                'last4_ss': data.get('last4_ss', ''),
+                'dob': data.get('dob', ''),
+                'address': data.get('address', ''),
+                'city': data.get('city', ''),
+                'county': data.get('county', ''),
+                'state': data.get('state', ''),
+                'zip': data.get('zip', ''),
+                'home_phone': data.get('home_phone', ''),
+                'cell_phone': data.get('cell_phone', ''),
+                'household_members': data.get('household_members', '')
+            }
+            response = insert('fth.households', newHousehold, conn)
+            print(response)
+            return 200
+        except Exception as e:
+            print(e)
+            return 500
 
 class createAccount_fth(Resource):
 
@@ -17258,6 +17357,10 @@ api.add_resource(Stripe_Intent, '/api/v2/Stripe_Intent')
 api.add_resource(stripe_key, '/api/v2/stripe_key/<string:desc>')
 
 # api.add_resource(createAccount2, '/api/v2/createAccount2')
+
+api.add_resource(createAccount3, '/api/v2/createAccount3')
+
+api.add_resource(clientForm, '/api/v2/clientForm');
 
 api.add_resource(brandAmbassador, '/api/v2/brandAmbassador/<string:action>')
 
