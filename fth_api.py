@@ -4551,7 +4551,7 @@ class checkout_SN(Resource):
             purchase_id = purchase_uid
             purchase_status = 'ACTIVE'
             pur_customer_uid = data['pur_customer_uid']
-            #pur_business_uid = data['pur_business_uid']
+            pur_business_uid = data['pur_business_uid']
             #items_pur = data['items']
             items_pur = "'[" + ", ".join([str(val).replace("'", "\"")
                                          if val else "NULL" for val in data['items']]) + "]'"
@@ -4594,6 +4594,7 @@ class checkout_SN(Resource):
                 purchase_id = \'""" + purchase_id + """\',
                 purchase_status = \'""" + purchase_status + """\',
                 pur_customer_uid = \'""" + pur_customer_uid + """\',
+                pur_business_uid = \'""" + pur_business_uid + """\',
                 items = """ + items_pur + """,
                 order_instructions = \'""" + order_instructions + """\',
                 delivery_instructions = \'""" + delivery_instructions + """\',
